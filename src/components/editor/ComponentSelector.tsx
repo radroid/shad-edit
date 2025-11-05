@@ -1,16 +1,28 @@
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useConvexAuth } from 'convex/react'
 import { Search, Plus, FileCode } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useQuery } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
+import { getAllCatalogComponents } from '@/lib/catalog-loader'
+import type { ComponentConfig } from '@/lib/component-config'
 
 type ComponentSelectorProps = {
   selectedComponentId?: string
   onSelectComponent: (componentId: string) => void
+}
+
+type ComponentItem = {
+  id: string
+  name: string
+  description?: string
+  category?: string
+  isPublic: boolean
+  isCatalog: boolean
+  isMine?: boolean
 }
 
 export default function ComponentSelector({ 
@@ -18,26 +30,84 @@ export default function ComponentSelector({
   onSelectComponent 
 }: ComponentSelectorProps) {
   const [searchQuery, setSearchQuery] = useState('')
+  const [catalogComponents, setCatalogComponents] = useState<Array<{ id: string; config: ComponentConfig }>>([])
   const { isAuthenticated } = useConvexAuth()
   const myComponents = useQuery(api.components.listMyComponents, isAuthenticated ? {} : 'skip')
   const publicComponents = useQuery(api.components.listPublicComponents, {}) ?? []
 
-  const fallback = [
-    { _id: 'shadcn-button', name: 'Button', description: 'A clickable button', category: 'Form', isPublic: true },
-    { _id: 'shadcn-input', name: 'Input', description: 'Text input field', category: 'Form', isPublic: true },
-    { _id: 'shadcn-dialog', name: 'Dialog', description: 'Modal dialog', category: 'Overlay', isPublic: true },
-    { _id: 'shadcn-card', name: 'Card', description: 'Content container', category: 'Layout', isPublic: true },
-    { _id: 'shadcn-navigation-menu', name: 'Navigation Menu', description: 'Navigation with dropdowns', category: 'Navigation', isPublic: true },
-  ] as any[]
+  // Load catalog components
+  useEffect(() => {
+    getAllCatalogComponents().then(setCatalogComponents).catch(console.error)
+  }, [])
 
-  const source = (myComponents && myComponents.length > 0)
-    ? myComponents
-    : (publicComponents && publicComponents.length > 0)
-      ? publicComponents
-      : fallback
-  const filteredComponents = source?.filter((comp) =>
-    comp.name.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  // Combine all components: catalog, user's components, and public components
+  const allComponents = useMemo<ComponentItem[]>(() => {
+    const items: ComponentItem[] = []
+
+    // Add catalog components (always public)
+    catalogComponents.forEach(({ id, config }) => {
+      items.push({
+        id,
+        name: config.metadata.name,
+        description: config.metadata.description,
+        category: config.metadata.category,
+        isPublic: true,
+        isCatalog: true,
+        isMine: false,
+      })
+    })
+
+    // Add user's components
+    if (myComponents) {
+      myComponents.forEach((comp) => {
+        items.push({
+          id: comp._id,
+          name: comp.name,
+          description: comp.description,
+          category: comp.category,
+          isPublic: comp.isPublic,
+          isCatalog: false,
+          isMine: true,
+        })
+      })
+    }
+
+    // Add public components (excluding user's own and catalog items)
+    const existingIds = new Set(items.map(item => item.id))
+    publicComponents.forEach((comp) => {
+      if (!existingIds.has(comp._id)) {
+        items.push({
+          id: comp._id,
+          name: comp.name,
+          description: comp.description,
+          category: comp.category,
+          isPublic: comp.isPublic,
+          isCatalog: false,
+          isMine: false,
+        })
+      }
+    })
+
+    // Sort: user's components first, then catalog, then public
+    return items.sort((a, b) => {
+      if (a.isMine && !b.isMine) return -1
+      if (!a.isMine && b.isMine) return 1
+      if (a.isCatalog && !b.isCatalog) return -1
+      if (!a.isCatalog && b.isCatalog) return 1
+      return a.name.localeCompare(b.name)
+    })
+  }, [catalogComponents, myComponents, publicComponents])
+
+  const filteredComponents = useMemo(() => {
+    if (!searchQuery.trim()) return allComponents
+    
+    const query = searchQuery.toLowerCase()
+    return allComponents.filter((comp) =>
+      comp.name.toLowerCase().includes(query) ||
+      comp.description?.toLowerCase().includes(query) ||
+      comp.category?.toLowerCase().includes(query)
+    )
+  }, [allComponents, searchQuery])
 
   return (
     <div className="flex flex-col h-full border-r">
@@ -61,12 +131,12 @@ export default function ComponentSelector({
 
       <ScrollArea className="flex-1">
         <div className="p-2 space-y-1">
-          {filteredComponents?.map((component) => (
+          {filteredComponents.map((component) => (
             <button
-              key={component._id}
-              onClick={() => onSelectComponent(component._id)}
+              key={component.id}
+              onClick={() => onSelectComponent(component.id)}
               className={`w-full text-left p-3 rounded-lg border transition-colors hover:bg-accent ${
-                selectedComponentId === component._id
+                selectedComponentId === component.id
                   ? 'bg-accent border-primary'
                   : 'border-transparent'
               }`}
@@ -78,6 +148,9 @@ export default function ComponentSelector({
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-sm truncate">
                     {component.name}
+                    {component.isMine && (
+                      <span className="ml-2 text-xs text-muted-foreground">(Yours)</span>
+                    )}
                   </div>
                   {component.description && (
                     <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
@@ -90,19 +163,26 @@ export default function ComponentSelector({
                         {component.category}
                       </Badge>
                     )}
-                    <Badge
-                      variant={component.isPublic ? 'default' : 'outline'}
-                      className="text-xs"
-                    >
-                      {component.isPublic ? 'Public' : 'Draft'}
-                    </Badge>
+                    {component.isCatalog && (
+                      <Badge variant="outline" className="text-xs">
+                        Catalog
+                      </Badge>
+                    )}
+                    {!component.isCatalog && (
+                      <Badge
+                        variant={component.isPublic ? 'default' : 'outline'}
+                        className="text-xs"
+                      >
+                        {component.isPublic ? 'Public' : 'Draft'}
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </div>
             </button>
           ))}
 
-          {!filteredComponents || filteredComponents.length === 0 ? (
+          {filteredComponents.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground text-sm">
               {searchQuery ? 'No components found' : 'No components yet'}
             </div>

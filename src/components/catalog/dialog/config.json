@@ -1,0 +1,170 @@
+{
+  "metadata": {
+    "name": "Dialog",
+    "description": "A modal dialog for focused interactions",
+    "category": "Overlay",
+    "tags": ["dialog", "modal", "overlay", "popup"],
+    "author": "shadcn/ui",
+    "version": "1.0.0"
+  },
+  "code": "import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'\nimport { Button } from '@/components/ui/button'\n\nexport default function DialogComponent() {\n  return (\n    <Dialog>\n      <DialogTrigger asChild>\n        <Button variant=\"{{triggerVariant}}\" size=\"{{triggerSize}}\">{{triggerText}}</Button>\n      </DialogTrigger>\n      <DialogContent className=\"{{className}}\">\n        <DialogHeader>\n          <DialogTitle>{{title}}</DialogTitle>\n          <DialogDescription>{{description}}</DialogDescription>\n        </DialogHeader>\n        <div className=\"py-4\">\n          <p className=\"text-sm text-muted-foreground\">{{content}}</p>\n        </div>\n        <DialogFooter>\n          <Button type=\"submit\" variant=\"{{actionVariant}}\">{{actionText}}</Button>\n        </DialogFooter>\n      </DialogContent>\n    </Dialog>\n  )\n}",
+  "properties": [
+    {
+      "name": "triggerText",
+      "label": "Trigger Button Text",
+      "type": "string",
+      "defaultValue": "Open Dialog",
+      "category": "Content",
+      "description": "Text for the button that opens the dialog"
+    },
+    {
+      "name": "triggerVariant",
+      "label": "Trigger Button Variant",
+      "type": "select",
+      "defaultValue": "default",
+      "category": "Appearance",
+      "options": [
+        { "label": "Default", "value": "default" },
+        { "label": "Outline", "value": "outline" },
+        { "label": "Ghost", "value": "ghost" }
+      ],
+      "description": "Style of the trigger button"
+    },
+    {
+      "name": "triggerSize",
+      "label": "Trigger Button Size",
+      "type": "select",
+      "defaultValue": "default",
+      "category": "Appearance",
+      "options": [
+        { "label": "Small", "value": "sm" },
+        { "label": "Default", "value": "default" },
+        { "label": "Large", "value": "lg" }
+      ],
+      "description": "Size of the trigger button"
+    },
+    {
+      "name": "title",
+      "label": "Dialog Title",
+      "type": "string",
+      "defaultValue": "Dialog Title",
+      "category": "Content",
+      "description": "The dialog title"
+    },
+    {
+      "name": "description",
+      "label": "Dialog Description",
+      "type": "string",
+      "defaultValue": "Dialog description",
+      "category": "Content",
+      "description": "The dialog description"
+    },
+    {
+      "name": "content",
+      "label": "Dialog Content",
+      "type": "textarea",
+      "defaultValue": "Dialog content goes here",
+      "category": "Content",
+      "description": "The main dialog content"
+    },
+    {
+      "name": "actionText",
+      "label": "Action Button Text",
+      "type": "string",
+      "defaultValue": "Save changes",
+      "category": "Content",
+      "description": "Text for the action button"
+    },
+    {
+      "name": "actionVariant",
+      "label": "Action Button Variant",
+      "type": "select",
+      "defaultValue": "default",
+      "category": "Appearance",
+      "options": [
+        { "label": "Default", "value": "default" },
+        { "label": "Secondary", "value": "secondary" },
+        { "label": "Destructive", "value": "destructive" }
+      ],
+      "description": "Style of the action button"
+    },
+    {
+      "name": "className",
+      "label": "Additional CSS Classes",
+      "type": "string",
+      "defaultValue": "",
+      "category": "Styling",
+      "description": "Additional Tailwind CSS classes for dialog content"
+    }
+  ],
+  "variableMappings": [
+    {
+      "propertyName": "triggerText",
+      "type": "content",
+      "target": "Button",
+      "path": "text",
+      "defaultValue": "Open Dialog"
+    },
+    {
+      "propertyName": "triggerVariant",
+      "type": "attribute",
+      "target": "Button",
+      "path": "variant",
+      "defaultValue": "default"
+    },
+    {
+      "propertyName": "triggerSize",
+      "type": "attribute",
+      "target": "Button",
+      "path": "size",
+      "defaultValue": "default"
+    },
+    {
+      "propertyName": "title",
+      "type": "content",
+      "target": "DialogTitle",
+      "path": "text",
+      "defaultValue": "Dialog Title"
+    },
+    {
+      "propertyName": "description",
+      "type": "content",
+      "target": "DialogDescription",
+      "path": "text",
+      "defaultValue": "Dialog description"
+    },
+    {
+      "propertyName": "content",
+      "type": "content",
+      "target": "div",
+      "path": "text",
+      "defaultValue": "Dialog content goes here"
+    },
+    {
+      "propertyName": "actionText",
+      "type": "content",
+      "target": "Button",
+      "path": "text",
+      "defaultValue": "Save changes"
+    },
+    {
+      "propertyName": "actionVariant",
+      "type": "attribute",
+      "target": "Button",
+      "path": "variant",
+      "defaultValue": "default"
+    },
+    {
+      "propertyName": "className",
+      "type": "className",
+      "target": "DialogContent",
+      "path": "className",
+      "defaultValue": ""
+    }
+  ],
+  "dependencies": {
+    "@/components/ui/dialog": "@/components/ui/dialog",
+    "@/components/ui/button": "@/components/ui/button"
+  }
+}
+

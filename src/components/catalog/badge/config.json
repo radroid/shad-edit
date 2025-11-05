@@ -1,0 +1,70 @@
+{
+  "metadata": {
+    "name": "Badge",
+    "description": "A small status indicator",
+    "category": "Display",
+    "tags": ["badge", "label", "indicator", "status"],
+    "author": "shadcn/ui",
+    "version": "1.0.0"
+  },
+  "code": "import { Badge } from '@/components/ui/badge'\n\nexport default function BadgeComponent() {\n  return (\n    <Badge\n      variant=\"{{variant}}\"\n      className=\"{{className}}\"\n    >\n      {{text}}\n    </Badge>\n  )\n}",
+  "properties": [
+    {
+      "name": "text",
+      "label": "Badge Text",
+      "type": "string",
+      "defaultValue": "Badge",
+      "category": "Content",
+      "description": "The text displayed in the badge"
+    },
+    {
+      "name": "variant",
+      "label": "Variant",
+      "type": "select",
+      "defaultValue": "default",
+      "category": "Appearance",
+      "options": [
+        { "label": "Default", "value": "default" },
+        { "label": "Secondary", "value": "secondary" },
+        { "label": "Destructive", "value": "destructive" },
+        { "label": "Outline", "value": "outline" }
+      ],
+      "description": "The visual style variant of the badge"
+    },
+    {
+      "name": "className",
+      "label": "Additional CSS Classes",
+      "type": "string",
+      "defaultValue": "",
+      "category": "Styling",
+      "description": "Additional Tailwind CSS classes"
+    }
+  ],
+  "variableMappings": [
+    {
+      "propertyName": "text",
+      "type": "content",
+      "target": "Badge",
+      "path": "text",
+      "defaultValue": "Badge"
+    },
+    {
+      "propertyName": "variant",
+      "type": "attribute",
+      "target": "Badge",
+      "path": "variant",
+      "defaultValue": "default"
+    },
+    {
+      "propertyName": "className",
+      "type": "className",
+      "target": "Badge",
+      "path": "className",
+      "defaultValue": ""
+    }
+  ],
+  "dependencies": {
+    "@/components/ui/badge": "@/components/ui/badge"
+  }
+}
+

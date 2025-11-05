@@ -2,6 +2,8 @@
  * Property Extractor - Analyzes React component code and extracts editable properties
  */
 
+import type { ComponentConfig } from './component-config'
+
 export type PropertyType =
   | 'string'
   | 'number'
@@ -39,20 +41,91 @@ export type ComponentStructure = {
 }
 
 /**
- * Extract properties from component code
+ * Extract properties from component config
+ * This is the preferred method - uses the component's configuration
+ */
+export function extractPropertiesFromConfig(
+  config: ComponentConfig
+): ComponentStructure {
+  return {
+    name: config.metadata.name,
+    elements: extractElementsFromCode(config.code),
+    globalProperties: config.properties.filter(
+      (prop) => !prop.category || prop.category === 'Layout'
+    ),
+  }
+}
+
+/**
+ * Extract properties from component code (legacy method)
+ * This is a simplified property extraction
+ * In a real implementation, you'd use a proper AST parser like @babel/parser
  */
 export function extractPropertiesFromCode(
   code: string,
-  componentName: string = 'Component'
+  componentName: string = 'Component',
+  config?: ComponentConfig
 ): ComponentStructure {
-  // This is a simplified property extraction
-  // In a real implementation, you'd use a proper AST parser like @babel/parser
+  // If config is provided, use it
+  if (config) {
+    return extractPropertiesFromConfig(config)
+  }
 
   const globalProperties: PropertyDefinition[] = []
-  const elements: ComponentElement[] = []
+  const elements: ComponentElement[] = extractElementsFromCode(code)
 
-  // Extract common style properties
-  const commonStyleProps: PropertyDefinition[] = [
+  // If no elements found, add some default ones
+  if (elements.length === 0) {
+    elements.push({
+      id: 'root-container',
+      type: 'div',
+      name: 'Root Container',
+      properties: getCommonStyleProps(),
+    })
+  }
+
+  // Add global component properties
+  globalProperties.push({
+    name: 'width',
+    label: 'Component Width',
+    type: 'string',
+    defaultValue: '100%',
+    category: 'Layout',
+  })
+  globalProperties.push({
+    name: 'height',
+    label: 'Component Height',
+    type: 'string',
+    defaultValue: 'auto',
+    category: 'Layout',
+  })
+  globalProperties.push({
+    name: 'maxWidth',
+    label: 'Max Width',
+    type: 'string',
+    defaultValue: 'none',
+    category: 'Layout',
+  })
+
+  return {
+    name: componentName,
+    elements,
+    globalProperties,
+  }
+}
+
+/**
+ * Extract elements from code (helper function)
+ */
+function extractElementsFromCode(code: string): ComponentElement[] {
+  return detectElementTypes(code)
+}
+
+/**
+ * Get common style properties (shared helper)
+ */
+function getCommonStyleProps(): PropertyDefinition[] {
+  return [
     {
       name: 'padding',
       label: 'Padding',
@@ -131,6 +204,14 @@ export function extractPropertiesFromCode(
       category: 'Border',
     },
   ]
+}
+
+/**
+ * Detect element types from code (including shadcn components)
+ */
+function detectElementTypes(code: string): ComponentElement[] {
+  const elements: ComponentElement[] = []
+  const commonStyleProps = getCommonStyleProps()
 
   // Detect element types from code (including shadcn components)
   const elementTypes = [
@@ -370,44 +451,7 @@ export function extractPropertiesFromCode(
     }
   })
 
-  // If no elements found, add some default ones
-  if (elements.length === 0) {
-    elements.push({
-      id: 'root-container',
-      type: 'div',
-      name: 'Root Container',
-      properties: commonStyleProps,
-    })
-  }
-
-  // Add global component properties
-  globalProperties.push({
-    name: 'width',
-    label: 'Component Width',
-    type: 'string',
-    defaultValue: '100%',
-    category: 'Layout',
-  })
-  globalProperties.push({
-    name: 'height',
-    label: 'Component Height',
-    type: 'string',
-    defaultValue: 'auto',
-    category: 'Layout',
-  })
-  globalProperties.push({
-    name: 'maxWidth',
-    label: 'Max Width',
-    type: 'string',
-    defaultValue: 'none',
-    category: 'Layout',
-  })
-
-  return {
-    name: componentName,
-    elements,
-    globalProperties,
-  }
+  return elements
 }
 
 /**

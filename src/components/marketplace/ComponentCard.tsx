@@ -3,16 +3,21 @@ import { renderComponentPreview, ComponentType, getComponentInfo } from '@/lib/c
 
 export default function ComponentCard({ 
   title, 
+  description,
+  category,
   componentType, 
   onClick 
 }: { 
   title: string
+  description?: string
+  category?: string
   componentType?: ComponentType
   onClick?: () => void 
 }) {
   // Try to derive component type from title if not provided
   const derivedType = componentType || deriveComponentType(title)
   const componentInfo = derivedType ? getComponentInfo(derivedType) : null
+  const displayCategory = category || componentInfo?.category
 
   return (
     <button type="button" onClick={onClick} className="w-full text-left">
@@ -41,8 +46,11 @@ export default function ComponentCard({
           <div className="text-sm text-slate-200 font-medium group-hover:text-cyan-400 transition-colors">
             {title}
           </div>
-          {componentInfo && (
-            <div className="text-xs text-slate-400">{componentInfo.category}</div>
+          {description && (
+            <div className="text-xs text-slate-400 line-clamp-2">{description}</div>
+          )}
+          {displayCategory && (
+            <div className="text-xs text-slate-500">{displayCategory}</div>
           )}
         </div>
       </Card>

@@ -1,0 +1,124 @@
+{
+  "metadata": {
+    "name": "Navigation Menu",
+    "description": "Navigation with dropdowns",
+    "category": "Navigation",
+    "tags": ["navigation", "menu", "dropdown", "nav"],
+    "author": "shadcn/ui",
+    "version": "1.0.0"
+  },
+  "code": "import {\n  NavigationMenu,\n  NavigationMenuContent,\n  NavigationMenuItem,\n  NavigationMenuLink,\n  NavigationMenuList,\n  NavigationMenuTrigger,\n} from '@/components/ui/navigation-menu'\n\nexport default function NavigationMenuComponent() {\n  return (\n    <NavigationMenu className=\"{{className}}\">\n      <NavigationMenuList>\n        <NavigationMenuItem>\n          <NavigationMenuTrigger>{{item1}}</NavigationMenuTrigger>\n          <NavigationMenuContent>\n            <div className=\"grid gap-3 p-4 w-[400px] md:w-[500px]\">\n              <NavigationMenuLink className=\"block p-3 hover:bg-accent rounded-md cursor-pointer\">\n                <div className=\"font-medium mb-1\">{{item1Link1}}</div>\n                <div className=\"text-sm text-muted-foreground\">\n                  {{item1Link1Desc}}\n                </div>\n              </NavigationMenuLink>\n            </div>\n          </NavigationMenuContent>\n        </NavigationMenuItem>\n        <NavigationMenuItem>\n          <NavigationMenuTrigger>{{item2}}</NavigationMenuTrigger>\n          <NavigationMenuContent>\n            <div className=\"grid gap-3 p-4 w-[400px] md:w-[500px]\">\n              <NavigationMenuLink className=\"block p-3 hover:bg-accent rounded-md cursor-pointer\">\n                <div className=\"font-medium mb-1\">{{item2Link1}}</div>\n                <div className=\"text-sm text-muted-foreground\">\n                  {{item2Link1Desc}}\n                </div>\n              </NavigationMenuLink>\n            </div>\n          </NavigationMenuContent>\n        </NavigationMenuItem>\n      </NavigationMenuList>\n    </NavigationMenu>\n  )\n}",
+  "properties": [
+    {
+      "name": "item1",
+      "label": "Menu Item 1",
+      "type": "string",
+      "defaultValue": "Getting started",
+      "category": "Content",
+      "description": "First menu item label"
+    },
+    {
+      "name": "item1Link1",
+      "label": "Item 1 Link 1 Title",
+      "type": "string",
+      "defaultValue": "Introduction",
+      "category": "Content",
+      "description": "First link title in first menu"
+    },
+    {
+      "name": "item1Link1Desc",
+      "label": "Item 1 Link 1 Description",
+      "type": "string",
+      "defaultValue": "Learn about the component library",
+      "category": "Content",
+      "description": "First link description in first menu"
+    },
+    {
+      "name": "item2",
+      "label": "Menu Item 2",
+      "type": "string",
+      "defaultValue": "Components",
+      "category": "Content",
+      "description": "Second menu item label"
+    },
+    {
+      "name": "item2Link1",
+      "label": "Item 2 Link 1 Title",
+      "type": "string",
+      "defaultValue": "Browse Components",
+      "category": "Content",
+      "description": "First link title in second menu"
+    },
+    {
+      "name": "item2Link1Desc",
+      "label": "Item 2 Link 1 Description",
+      "type": "string",
+      "defaultValue": "Explore all available components",
+      "category": "Content",
+      "description": "First link description in second menu"
+    },
+    {
+      "name": "className",
+      "label": "Additional CSS Classes",
+      "type": "string",
+      "defaultValue": "",
+      "category": "Styling",
+      "description": "Additional Tailwind CSS classes"
+    }
+  ],
+  "variableMappings": [
+    {
+      "propertyName": "item1",
+      "type": "content",
+      "target": "NavigationMenuTrigger",
+      "path": "text",
+      "defaultValue": "Getting started"
+    },
+    {
+      "propertyName": "item1Link1",
+      "type": "content",
+      "target": "div",
+      "path": "text",
+      "defaultValue": "Introduction"
+    },
+    {
+      "propertyName": "item1Link1Desc",
+      "type": "content",
+      "target": "div",
+      "path": "text",
+      "defaultValue": "Learn about the component library"
+    },
+    {
+      "propertyName": "item2",
+      "type": "content",
+      "target": "NavigationMenuTrigger",
+      "path": "text",
+      "defaultValue": "Components"
+    },
+    {
+      "propertyName": "item2Link1",
+      "type": "content",
+      "target": "div",
+      "path": "text",
+      "defaultValue": "Browse Components"
+    },
+    {
+      "propertyName": "item2Link1Desc",
+      "type": "content",
+      "target": "div",
+      "path": "text",
+      "defaultValue": "Explore all available components"
+    },
+    {
+      "propertyName": "className",
+      "type": "className",
+      "target": "NavigationMenu",
+      "path": "className",
+      "defaultValue": ""
+    }
+  ],
+  "dependencies": {
+    "@/components/ui/navigation-menu": "@/components/ui/navigation-menu"
+  }
+}
+

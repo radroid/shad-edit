@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Monitor, Smartphone, Tablet, Code, Eye } from 'lucide-react'
 import { useState } from 'react'
 import { renderComponentPreview, ComponentType, getAllComponentTypes } from '@/lib/component-renderer'
+import type { ComponentConfig } from '@/lib/component-config'
 
 type ComponentCanvasProps = {
   componentStructure?: ComponentStructure
@@ -11,6 +12,7 @@ type ComponentCanvasProps = {
   onSelectElement: (elementId: string) => void
   propertyValues: Record<string, any>
   componentCode?: string
+  componentConfig?: ComponentConfig | null
 }
 
 export default function ComponentCanvas({

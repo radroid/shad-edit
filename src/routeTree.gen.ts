@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as MarketplaceIndexRouteImport } from './routes/marketplace/index'
 import { Route as MarketplaceComponentIdRouteImport } from './routes/marketplace/$componentId'
 import { Route as EditorComponentIdRouteImport } from './routes/editor/$componentId'
+import { Route as DocsSplatRouteImport } from './routes/docs/$'
 import { Route as AuthSignUpRouteImport } from './routes/auth/sign-up'
 import { Route as AuthSignInRouteImport } from './routes/auth/sign-in'
 
@@ -36,6 +37,11 @@ const EditorComponentIdRoute = EditorComponentIdRouteImport.update({
   path: '/editor/$componentId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DocsSplatRoute = DocsSplatRouteImport.update({
+  id: '/docs/$',
+  path: '/docs/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthSignUpRoute = AuthSignUpRouteImport.update({
   id: '/auth/sign-up',
   path: '/auth/sign-up',
@@ -51,6 +57,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-up': typeof AuthSignUpRoute
+  '/docs/$': typeof DocsSplatRoute
   '/editor/$componentId': typeof EditorComponentIdRoute
   '/marketplace/$componentId': typeof MarketplaceComponentIdRoute
   '/marketplace': typeof MarketplaceIndexRoute
@@ -59,6 +66,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-up': typeof AuthSignUpRoute
+  '/docs/$': typeof DocsSplatRoute
   '/editor/$componentId': typeof EditorComponentIdRoute
   '/marketplace/$componentId': typeof MarketplaceComponentIdRoute
   '/marketplace': typeof MarketplaceIndexRoute
@@ -68,6 +76,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-up': typeof AuthSignUpRoute
+  '/docs/$': typeof DocsSplatRoute
   '/editor/$componentId': typeof EditorComponentIdRoute
   '/marketplace/$componentId': typeof MarketplaceComponentIdRoute
   '/marketplace/': typeof MarketplaceIndexRoute
@@ -78,6 +87,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth/sign-in'
     | '/auth/sign-up'
+    | '/docs/$'
     | '/editor/$componentId'
     | '/marketplace/$componentId'
     | '/marketplace'
@@ -86,6 +96,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth/sign-in'
     | '/auth/sign-up'
+    | '/docs/$'
     | '/editor/$componentId'
     | '/marketplace/$componentId'
     | '/marketplace'
@@ -94,6 +105,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth/sign-in'
     | '/auth/sign-up'
+    | '/docs/$'
     | '/editor/$componentId'
     | '/marketplace/$componentId'
     | '/marketplace/'
@@ -103,6 +115,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthSignInRoute: typeof AuthSignInRoute
   AuthSignUpRoute: typeof AuthSignUpRoute
+  DocsSplatRoute: typeof DocsSplatRoute
   EditorComponentIdRoute: typeof EditorComponentIdRoute
   MarketplaceComponentIdRoute: typeof MarketplaceComponentIdRoute
   MarketplaceIndexRoute: typeof MarketplaceIndexRoute
@@ -138,6 +151,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EditorComponentIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/docs/$': {
+      id: '/docs/$'
+      path: '/docs/$'
+      fullPath: '/docs/$'
+      preLoaderRoute: typeof DocsSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/sign-up': {
       id: '/auth/sign-up'
       path: '/auth/sign-up'
@@ -159,6 +179,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthSignInRoute: AuthSignInRoute,
   AuthSignUpRoute: AuthSignUpRoute,
+  DocsSplatRoute: DocsSplatRoute,
   EditorComponentIdRoute: EditorComponentIdRoute,
   MarketplaceComponentIdRoute: MarketplaceComponentIdRoute,
   MarketplaceIndexRoute: MarketplaceIndexRoute,

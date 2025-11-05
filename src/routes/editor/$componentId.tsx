@@ -8,21 +8,29 @@ import { useMutation, useQuery } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 import { useState, useEffect, useMemo } from 'react'
 import {
-  extractPropertiesFromCode,
+  extractPropertiesFromConfig,
   getDefaultPropertyValues,
   ComponentStructure,
 } from '@/lib/property-extractor'
 import { Save, Upload, Undo, Redo, LogIn } from 'lucide-react'
 import type { Id } from '../../../convex/_generated/dataModel'
 import { useConvexAuth } from 'convex/react'
-import { getComponentInfo, ComponentType } from '@/lib/component-renderer'
+import { loadCatalogComponent } from '@/lib/catalog-loader'
+import { applyPropertiesToCode } from '@/lib/component-config'
+import type { ComponentConfig } from '@/lib/component-config'
 
 export const Route = createFileRoute('/editor/$componentId')({
+  loader: async ({ params }) => {
+    // Try to load from catalog first
+    const catalogConfig = await loadCatalogComponent(params.componentId)
+    return { componentId: params.componentId, catalogConfig }
+  },
   component: EditorPage,
 })
 
 function EditorPage() {
   const { componentId } = Route.useParams()
+  const { catalogConfig } = Route.useLoaderData()
   const navigate = useNavigate()
   const { isAuthenticated } = useConvexAuth()
   
@@ -35,6 +43,7 @@ function EditorPage() {
   const [propertyValues, setPropertyValues] = useState<Record<string, any>>({})
   const [componentStructure, setComponentStructure] = useState<ComponentStructure | undefined>()
   const [componentCode, setComponentCode] = useState<string>('')
+  const [config, setConfig] = useState<ComponentConfig | null>(catalogConfig)
   
   // History for undo/redo
   const [history, setHistory] = useState<Record<string, any>[]>([])
@@ -45,124 +54,113 @@ function EditorPage() {
   // Only query if authenticated
   const myComponents = useQuery(api.components.listMyComponents, isAuthenticated ? {} : 'skip')
 
-  // Load demo component for unauthenticated users or from componentId
+  // Load component from catalog or database
   useEffect(() => {
-    if (!isAuthenticated) {
-      // Load demo component based on componentId
-      loadDemoComponent(componentId)
+    // Priority: 1. Catalog config (from loader), 2. Database component, 3. Fallback
+    if (catalogConfig) {
+      loadCatalogComponentConfig(catalogConfig)
+    } else if (isAuthenticated && selectedComponentId && myComponents) {
+      loadDatabaseComponent(selectedComponentId, myComponents)
+    } else if (!isAuthenticated && !catalogConfig) {
+      // For unauthenticated users, try to load from catalog
+      loadCatalogComponentById(componentId)
     }
-  }, [componentId, isAuthenticated])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [componentId, catalogConfig, isAuthenticated, selectedComponentId, myComponents])
 
-  // Load selected component data (authenticated users)
-  useEffect(() => {
-    if (isAuthenticated && selectedComponentId && myComponents) {
-      const component = myComponents.find((c) => c._id === selectedComponentId)
-      if (component) {
-        setName(component.name)
-        setDescription(component.description || '')
-        
-        // Extract component code (from registryData or generate minimal sample)
-        const source = (component.sourceComponent || 'button').toLowerCase()
-        const tag = 
-          source.includes('button') ? 'button' :
-          source.includes('input') ? 'input' :
-          source.includes('card') ? 'Card' :
-          source.includes('dialog') ? 'Dialog' :
-          source.includes('navigation') ? 'NavigationMenu' :
-          source.includes('badge') ? 'Badge' :
-          source.includes('label') ? 'Label' : 'div'
+  // Load component from catalog config
+  const loadCatalogComponentConfig = (catalogConfig: ComponentConfig) => {
+    setConfig(catalogConfig)
+    setName(catalogConfig.metadata.name)
+    setDescription(catalogConfig.metadata.description || '')
+    
+    // Extract properties from config
+    const structure = extractPropertiesFromConfig(catalogConfig)
+    setComponentStructure(structure)
+    
+    // Initialize property values with defaults
+    const defaults: Record<string, any> = {}
+    catalogConfig.properties.forEach((prop) => {
+      defaults[prop.name] = prop.defaultValue
+    })
+    setPropertyValues(defaults)
+    
+    // Set initial code
+    setComponentCode(catalogConfig.code)
+    
+    // Select first element by default
+    if (structure.elements.length > 0) {
+      setSelectedElementId(structure.elements[0].id)
+    }
+  }
 
-        const sampleCode = `
-export default function ${component.name.replace(/\s+/g, '')}() {
-  return (
-    <${tag}${tag==='input' ? ' placeholder=""' : ''}${tag==='button' ? '' : tag==='input' ? ' />' : ' />'}${tag==='button' ? '>Click me</button>' : ''}
-  )
-}
-`
-        setComponentCode(component.registryData?.code || sampleCode)
-        
-        // Extract properties from code
-        const structure = extractPropertiesFromCode(
-          sampleCode,
-          component.name
+  // Load component from catalog by ID
+  const loadCatalogComponentById = async (id: string) => {
+    const catalogConfig = await loadCatalogComponent(id)
+    if (catalogConfig) {
+      loadCatalogComponentConfig(catalogConfig)
+    }
+  }
+
+  // Load component from database (user's saved components)
+  const loadDatabaseComponent = async (
+    componentDbId: Id<'components'>,
+    myComponents: any[]
+  ) => {
+    const component = myComponents.find((c) => c._id === componentDbId)
+    if (!component) return
+
+    setName(component.name)
+    setDescription(component.description || '')
+    
+    // Try to load from catalog if sourceComponent is specified
+    const sourceId = component.sourceComponent || componentId
+    const catalogConfig = await loadCatalogComponent(sourceId)
+    
+    if (catalogConfig) {
+      // Use catalog config as base
+      loadCatalogComponentConfig(catalogConfig)
+      
+      // Apply saved customizations
+      const saved = component.customizations || {}
+      setPropertyValues({ ...propertyValues, ...saved })
+      
+      // Use saved code if available, otherwise use catalog code with applied properties
+      if (component.registryData?.code) {
+        setComponentCode(component.registryData.code)
+      } else {
+        const renderedCode = applyPropertiesToCode(
+          catalogConfig.code,
+          { ...propertyValues, ...saved },
+          catalogConfig.variableMappings
         )
+        setComponentCode(renderedCode)
+      }
+    } else {
+      // Fallback: use component name and saved code
+      const code = component.registryData?.code || ''
+      if (code) {
+        setComponentCode(code)
+        // Create minimal config for extraction
+        const fallbackConfig: ComponentConfig = {
+          metadata: { 
+            name: component.name, 
+            description: component.description || '' 
+          },
+          code,
+          properties: [],
+        }
+        const structure = extractPropertiesFromConfig(fallbackConfig)
         setComponentStructure(structure)
         
-        // Initialize property values
         const defaults = getDefaultPropertyValues(structure)
         const saved = component.customizations || {}
         setPropertyValues({ ...defaults, ...saved })
         
-        // Select first element by default
         if (structure.elements.length > 0) {
           setSelectedElementId(structure.elements[0].id)
         }
-      } else {
-        // Selected an item not in user's components (likely a public/fallback item)
-        loadDemoComponent(String(selectedComponentId))
       }
-    }
-  }, [selectedComponentId, myComponents, isAuthenticated])
-
-  const loadDemoComponent = (id: string) => {
-    // Derive component type from ID
-    const idLower = id.toLowerCase()
-    let componentType: ComponentType = 'button'
-    let componentName = 'Button'
-    
-    if (idLower.includes('button')) {
-      componentType = 'button'
-      componentName = 'Button'
-    } else if (idLower.includes('input')) {
-      componentType = 'input'
-      componentName = 'Input'
-    } else if (idLower.includes('card')) {
-      componentType = 'card'
-      componentName = 'Card'
-    } else if (idLower.includes('dialog')) {
-      componentType = 'dialog'
-      componentName = 'Dialog'
-    } else if (idLower.includes('navigation') || idLower.includes('menu')) {
-      componentType = 'navigation-menu'
-      componentName = 'Navigation Menu'
-    } else if (idLower.includes('badge')) {
-      componentType = 'badge'
-      componentName = 'Badge'
-    } else if (idLower.includes('label')) {
-      componentType = 'label'
-      componentName = 'Label'
-    }
-
-    const componentInfo = getComponentInfo(componentType)
-    setName(componentInfo.name)
-    setDescription(componentInfo.description)
-
-    const tag = 
-      componentType === 'button' ? 'button' :
-      componentType === 'input' ? 'input' :
-      componentType === 'card' ? 'Card' :
-      componentType === 'dialog' ? 'Dialog' :
-      componentType === 'navigation-menu' ? 'NavigationMenu' :
-      componentType === 'badge' ? 'Badge' :
-      componentType === 'label' ? 'Label' : 'div'
-
-    const sampleCode = `
-export default function ${componentName.replace(/\s+/g, '')}() {
-  return (
-    <${tag}${tag==='input' ? ' placeholder=""' : ''}${tag==='button' ? '' : tag==='input' ? ' />' : ' />'}${tag==='button' ? '>Click me</button>' : ''}
-  )
-}
-`
-    setComponentCode(sampleCode)
-    
-    const structure = extractPropertiesFromCode(sampleCode, componentName)
-    setComponentStructure(structure)
-    
-    const defaults = getDefaultPropertyValues(structure)
-    setPropertyValues(defaults)
-    
-    if (structure.elements.length > 0) {
-      setSelectedElementId(structure.elements[0].id)
     }
   }
 
@@ -187,6 +185,16 @@ export default function ${componentName.replace(/\s+/g, '')}() {
     setHistoryIndex(newHistory.length - 1)
     
     setPropertyValues(newValues)
+    
+    // Update rendered code if config is available
+    if (config) {
+      const renderedCode = applyPropertiesToCode(
+        config.code,
+        newValues,
+        config.variableMappings
+      )
+      setComponentCode(renderedCode)
+    }
   }
 
   // Undo/Redo functionality
@@ -341,6 +349,7 @@ export default function ${componentName.replace(/\s+/g, '')}() {
             onSelectElement={handleSelectElement}
             propertyValues={propertyValues}
             componentCode={componentCode}
+            componentConfig={config}
           />
         </div>
 

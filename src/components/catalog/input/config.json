@@ -1,0 +1,104 @@
+{
+  "metadata": {
+    "name": "Input",
+    "description": "Text input field for user data entry",
+    "category": "Form",
+    "tags": ["input", "form", "text", "field"],
+    "author": "shadcn/ui",
+    "version": "1.0.0"
+  },
+  "code": "import { Input } from '@/components/ui/input'\n\nexport default function InputComponent() {\n  return (\n    <Input\n      type=\"{{type}}\"\n      placeholder=\"{{placeholder}}\"\n      className=\"{{className}}\"\n      disabled={{{disabled}}}\n      defaultValue=\"{{defaultValue}}\"\n    />\n  )\n}",
+  "properties": [
+    {
+      "name": "placeholder",
+      "label": "Placeholder",
+      "type": "string",
+      "defaultValue": "Enter text...",
+      "category": "Content",
+      "description": "Placeholder text shown when input is empty"
+    },
+    {
+      "name": "type",
+      "label": "Input Type",
+      "type": "select",
+      "defaultValue": "text",
+      "category": "Behavior",
+      "options": [
+        { "label": "Text", "value": "text" },
+        { "label": "Email", "value": "email" },
+        { "label": "Password", "value": "password" },
+        { "label": "Number", "value": "number" },
+        { "label": "Date", "value": "date" },
+        { "label": "Time", "value": "time" },
+        { "label": "Search", "value": "search" },
+        { "label": "URL", "value": "url" }
+      ],
+      "description": "The type of input field"
+    },
+    {
+      "name": "defaultValue",
+      "label": "Default Value",
+      "type": "string",
+      "defaultValue": "",
+      "category": "Content",
+      "description": "Initial value for the input"
+    },
+    {
+      "name": "disabled",
+      "label": "Disabled",
+      "type": "boolean",
+      "defaultValue": false,
+      "category": "Behavior",
+      "description": "Whether the input is disabled"
+    },
+    {
+      "name": "className",
+      "label": "Additional CSS Classes",
+      "type": "string",
+      "defaultValue": "",
+      "category": "Styling",
+      "description": "Additional Tailwind CSS classes"
+    }
+  ],
+  "variableMappings": [
+    {
+      "propertyName": "placeholder",
+      "type": "attribute",
+      "target": "Input",
+      "path": "placeholder",
+      "defaultValue": "Enter text..."
+    },
+    {
+      "propertyName": "type",
+      "type": "attribute",
+      "target": "Input",
+      "path": "type",
+      "defaultValue": "text"
+    },
+    {
+      "propertyName": "defaultValue",
+      "type": "attribute",
+      "target": "Input",
+      "path": "defaultValue",
+      "defaultValue": ""
+    },
+    {
+      "propertyName": "disabled",
+      "type": "attribute",
+      "target": "Input",
+      "path": "disabled",
+      "defaultValue": false
+    },
+    {
+      "propertyName": "className",
+      "type": "className",
+      "target": "Input",
+      "path": "className",
+      "defaultValue": ""
+    }
+  ],
+  "dependencies": {
+    "@/components/ui/input": "@/components/ui/input"
+  }
+}
+

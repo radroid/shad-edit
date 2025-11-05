@@ -1,29 +1,54 @@
-import { useMemo } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 import { useQuery } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 import ComponentCard from './ComponentCard'
 import { Link } from '@tanstack/react-router'
-import { ComponentType } from '@/lib/component-renderer'
+import { getAllCatalogComponents } from '@/lib/catalog-loader'
+import type { ComponentConfig } from '@/lib/component-config'
+
+type ComponentItem = {
+  id: string
+  name: string
+  description?: string
+  category?: string
+  isCatalog: boolean
+}
 
 export default function ComponentsList() {
   const components = useQuery(api.components.listPublicComponents) ?? []
+  const [catalogComponents, setCatalogComponents] = useState<Array<{ id: string; config: ComponentConfig }>>([])
+
+  // Load catalog components
+  useEffect(() => {
+    getAllCatalogComponents().then(setCatalogComponents).catch(console.error)
+  }, [])
 
   const items = useMemo(() => {
-    const dbItems = components.map((c) => ({ 
+    // Combine database components and catalog components
+    const dbItems: ComponentItem[] = components.map((c) => ({ 
       id: c._id, 
       name: c.name,
-      type: c.sourceComponent as ComponentType | undefined
+      description: c.description,
+      category: c.category,
+      isCatalog: false
     }))
-    if (dbItems.length > 0) return dbItems
-    // Fallback: show shadcn components available locally
-    return [
-      { id: 'shadcn-button', name: 'Button', type: 'button' as ComponentType },
-      { id: 'shadcn-input', name: 'Input', type: 'input' as ComponentType },
-      { id: 'shadcn-dialog', name: 'Dialog', type: 'dialog' as ComponentType },
-      { id: 'shadcn-card', name: 'Card', type: 'card' as ComponentType },
-      { id: 'shadcn-navigation-menu', name: 'Navigation Menu', type: 'navigation-menu' as ComponentType },
-    ]
-  }, [components])
+    
+    const catalogItems: ComponentItem[] = catalogComponents.map(({ id, config }) => ({
+      id,
+      name: config.metadata.name,
+      description: config.metadata.description,
+      category: config.metadata.category,
+      isCatalog: true
+    }))
+    
+    // Combine and deduplicate (prefer catalog over DB if same ID)
+    const allItems = [...catalogItems, ...dbItems]
+    const uniqueItems = Array.from(
+      new Map(allItems.map(item => [item.id, item])).values()
+    )
+    
+    return uniqueItems.length > 0 ? uniqueItems : []
+  }, [components, catalogComponents])
 
   if (!items.length) {
     return (
@@ -36,14 +61,15 @@ export default function ComponentsList() {
       {items.map((item) => (
         <Link
           key={String(item.id)}
-          to="/marketplace/$componentId"
+          to={item.isCatalog ? "/editor/$componentId" : "/marketplace/$componentId"}
           params={{ componentId: String(item.id) }}
           preload="intent"
           className="block"
         >
           <ComponentCard
             title={item.name}
-            componentType={item.type}
+            description={item.description}
+            category={item.category}
           />
         </Link>
       ))}

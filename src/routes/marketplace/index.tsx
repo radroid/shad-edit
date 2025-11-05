@@ -1,52 +1,29 @@
 import { createFileRoute } from '@tanstack/react-router'
-import ComponentCard from '@/components/marketplace/ComponentCard'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
+import ComponentsList from '@/components/marketplace/ComponentsList'
 
 export const Route = createFileRoute('/marketplace/')({
   component: Marketplace,
 })
 
 function Marketplace() {
-  const demos = [
-    {
-      id: 'button',
-      name: 'Button',
-      preview: <Button>Button</Button>,
-    },
-    {
-      id: 'input',
-      name: 'Input',
-      preview: <Input placeholder="Your name" />,
-    },
-    {
-      id: 'dialog',
-      name: 'Dialog',
-      preview: (
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button variant="outline">Open Dialog</Button>
-          </DialogTrigger>
-          <DialogContent>Dialog content</DialogContent>
-        </Dialog>
-      ),
-    },
-    {
-      id: 'kibo-card',
-      name: 'Kibo UI - Card (placeholder)',
-      preview: <div className="h-24 rounded bg-slate-800/50" />,
-    },
-  ]
   return (
-    <div className="p-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-        {demos.map((item) => (
-          <div key={item.id}>
-            <ComponentCard title={item.name} />
-            <div className="mt-3 space-y-2">{item.preview}</div>
-          </div>
-        ))}
+    <div className="px-6 py-8 md:px-8 md:py-10">
+      <div className="space-y-2 mb-8">
+        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Components</h1>
+        <p className="text-sm text-slate-400 max-w-2xl">
+          Here you can find all the components available in the library. We are
+          working on adding more components.
+        </p>
+      </div>
+
+      <ComponentsList />
+
+      <div className="mt-10 text-sm text-slate-400">
+        Can’t find what you need? Try the{' '}
+        <a className="underline underline-offset-4" href="/docs/directory">
+          registry directory
+        </a>{' '}
+        for community-maintained components.
       </div>
     </div>
   )

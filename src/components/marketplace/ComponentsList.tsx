@@ -2,12 +2,11 @@ import { useMemo } from 'react'
 import { useQuery } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 import ComponentCard from './ComponentCard'
-import { useNavigate } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router'
 import { ComponentType } from '@/lib/component-renderer'
 
 export default function ComponentsList() {
   const components = useQuery(api.components.listPublicComponents) ?? []
-  const navigate = useNavigate()
 
   const items = useMemo(() => {
     const dbItems = components.map((c) => ({ 
@@ -35,13 +34,18 @@ export default function ComponentsList() {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
       {items.map((item) => (
-        <div key={item.id}>
+        <Link
+          key={String(item.id)}
+          to="/marketplace/$componentId"
+          params={{ componentId: String(item.id) }}
+          preload="intent"
+          className="block"
+        >
           <ComponentCard
             title={item.name}
             componentType={item.type}
-            onClick={() => navigate({ to: `/marketplace/${item.id}` })}
           />
-        </div>
+        </Link>
       ))}
     </div>
   )

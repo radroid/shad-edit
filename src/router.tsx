@@ -8,7 +8,9 @@ export const getRouter = () => {
   const router = createRouter({
     routeTree,
     scrollRestoration: true,
-    defaultPreloadStaleTime: 0,
+    // Preload on user intent (hover/focus) and keep preloaded data warm briefly
+    defaultPreload: 'intent',
+    defaultPreloadStaleTime: 5 * 60 * 1000,
   })
 
   return router

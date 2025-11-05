@@ -55,6 +55,45 @@ export default defineSchema({
   })
     .index('by_variant', ['variantId'])
     .index('by_variant_version', ['variantId', 'version']),
+
+  // Component configurations - publicly readable catalog
+  componentConfigs: defineTable({
+    // Unique identifier (e.g., 'button', 'input')
+    componentId: v.string(),
+    
+    // Metadata fields (flattened for easy querying)
+    name: v.string(),
+    description: v.optional(v.string()),
+    category: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
+    author: v.optional(v.string()),
+    version: v.optional(v.string()),
+    
+    // Component code template
+    code: v.string(),
+    
+    // Properties array (stored as JSON)
+    properties: v.array(v.any()),
+    
+    // Variable mappings (optional, stored as JSON)
+    variableMappings: v.optional(v.array(v.any())),
+    
+    // Dependencies (optional, stored as JSON)
+    dependencies: v.optional(v.any()),
+    
+    // Files (optional, stored as JSON)
+    files: v.optional(v.array(v.any())),
+    
+    // Author information
+    authorId: v.id('users'),
+    
+    // Timestamps
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index('by_componentId', ['componentId'])
+    .index('by_category', ['category'])
+    .index('by_author', ['authorId']),
 })
 
 

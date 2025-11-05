@@ -1,6 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { loadCatalogComponent } from '@/lib/catalog-loader'
-import { extractPropertiesFromConfig } from '@/lib/property-extractor'
+import { useCatalogComponent } from '@/lib/catalog-hooks'
 import { applyPropertiesToCode } from '@/lib/component-config'
 import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,31 +10,24 @@ import { Link } from '@tanstack/react-router'
 import { ArrowLeft, Code, Settings } from 'lucide-react'
 
 export const Route = createFileRoute('/docs/$')({
-  loader: async ({ params }) => {
-    // Extract component ID from splat parameter
-    // In TanStack Start, catch-all routes use the `_splat` parameter
-    const splat = (params as any)._splat || ''
-    
-    // Extract component ID (first segment of the path)
-    // For /docs/component-name, splat will be "component-name"
-    // For /docs/component-name/subpath, splat will be "component-name/subpath"
-    const componentId = splat.split('/')[0] || ''
-    
-    // If it's empty or just the index, return null
-    if (!componentId || componentId === 'index') {
-      return { componentId: null, config: null }
-    }
-    
-    // Load the component config
-    const config = await loadCatalogComponent(componentId)
-    return { componentId, config }
-  },
   component: DocsPage,
 })
 
 function DocsPage() {
-  const { componentId, config } = Route.useLoaderData()
+  // Extract component ID from splat parameter
+  const splat = (Route.useParams() as any)._splat || ''
+  const componentId = splat.split('/')[0] || ''
+  
+  const { config, isLoading } = useCatalogComponent(componentId)
   const [propertyValues, setPropertyValues] = useState<Record<string, any>>({})
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-12">
+        <p className="text-muted-foreground">Loading component...</p>
+      </div>
+    )
+  }
 
   if (!componentId || !config) {
     return (
@@ -63,8 +55,6 @@ function DocsPage() {
     propertyValues,
     config.variableMappings
   )
-
-  const structure = extractPropertiesFromConfig(config)
 
   return (
     <div className="container mx-auto py-8 max-w-6xl">

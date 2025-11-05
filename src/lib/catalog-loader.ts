@@ -1,17 +1,19 @@
 /**
- * Catalog Loader - Loads component configurations from the catalog directory
+ * Catalog Loader - Loads component configurations from Convex (primary) or file system (fallback)
  */
 
 import type { ComponentConfig } from './component-config'
+import { api } from '../../convex/_generated/api'
+import type { ConvexClient } from 'convex/browser'
 
 /**
- * Component registry - maps component IDs to their config paths
- * This can be auto-generated at build time or manually maintained
+ * Component registry - maps component IDs to their config paths (fallback only)
+ * This is used when Convex is not available or for development
  */
 const COMPONENT_REGISTRY: Record<string, () => Promise<ComponentConfig>> = {}
 
 /**
- * Register a component configuration
+ * Register a component configuration (fallback only)
  */
 export function registerComponent(
   id: string,
@@ -21,11 +23,29 @@ export function registerComponent(
 }
 
 /**
- * Load a component configuration by ID
+ * Load a component configuration by ID from Convex
+ * Falls back to file system if Convex is not available
  */
 export async function loadCatalogComponent(
-  id: string
+  id: string,
+  convexClient?: ConvexClient
 ): Promise<ComponentConfig | null> {
+  // Try Convex first if client is available
+  if (convexClient) {
+    try {
+      const config = await convexClient.query(api.componentConfigs.getComponentConfigById, {
+        componentId: id,
+      })
+      if (config) {
+        return config
+      }
+    } catch (error) {
+      console.warn(`Failed to load component ${id} from Convex:`, error)
+      // Fall through to file system fallback
+    }
+  }
+  
+  // Fallback to file system
   const loader = COMPONENT_REGISTRY[id]
   if (!loader) {
     console.warn(`Component ${id} not found in registry`)
@@ -41,18 +61,48 @@ export async function loadCatalogComponent(
 }
 
 /**
- * Get all registered component IDs
+ * Get all registered component IDs (fallback only)
  */
 export function getRegisteredComponentIds(): string[] {
   return Object.keys(COMPONENT_REGISTRY)
 }
 
 /**
- * Get all component configs (for marketplace listing)
+ * Get all component configs from Convex
+ * Falls back to file system if Convex is not available
  */
-export async function getAllCatalogComponents(): Promise<
-  Array<{ id: string; config: ComponentConfig }>
-> {
+export async function getAllCatalogComponents(
+  convexClient?: ConvexClient
+): Promise<Array<{ id: string; config: ComponentConfig }>> {
+  // Try Convex first if client is available
+  if (convexClient) {
+    try {
+      const configs = await convexClient.query(api.componentConfigs.listPublicComponentConfigs, {})
+      return configs.map((config) => ({
+        id: config.componentId,
+        config: {
+          metadata: {
+            name: config.name,
+            description: config.description,
+            category: config.category,
+            tags: config.tags,
+            author: config.author,
+            version: config.version,
+          },
+          code: config.code,
+          properties: config.properties,
+          variableMappings: config.variableMappings,
+          dependencies: config.dependencies,
+          files: config.files,
+        } as ComponentConfig,
+      }))
+    } catch (error) {
+      console.warn('Failed to load components from Convex, falling back to file system:', error)
+      // Fall through to file system fallback
+    }
+  }
+  
+  // Fallback to file system
   const ids = getRegisteredComponentIds()
   const components = await Promise.all(
     ids.map(async (id) => {

@@ -15,24 +15,19 @@ import {
 import { Save, Upload, Undo, Redo, LogIn } from 'lucide-react'
 import type { Id } from '../../../convex/_generated/dataModel'
 import { useConvexAuth } from 'convex/react'
-import { loadCatalogComponent } from '@/lib/catalog-loader'
+import { useCatalogComponent } from '@/lib/catalog-hooks'
 import { applyPropertiesToCode } from '@/lib/component-config'
 import type { ComponentConfig } from '@/lib/component-config'
 
 export const Route = createFileRoute('/editor/$componentId')({
-  loader: async ({ params }) => {
-    // Try to load from catalog first
-    const catalogConfig = await loadCatalogComponent(params.componentId)
-    return { componentId: params.componentId, catalogConfig }
-  },
   component: EditorPage,
 })
 
 function EditorPage() {
   const { componentId } = Route.useParams()
-  const { catalogConfig } = Route.useLoaderData()
   const navigate = useNavigate()
   const { isAuthenticated } = useConvexAuth()
+  const { config: catalogConfig, isLoading: catalogLoading } = useCatalogComponent(componentId)
   
   const [name, setName] = useState('Untitled Component')
   const [description, setDescription] = useState('')
@@ -56,17 +51,14 @@ function EditorPage() {
 
   // Load component from catalog or database
   useEffect(() => {
-    // Priority: 1. Catalog config (from loader), 2. Database component, 3. Fallback
-    if (catalogConfig) {
+    // Priority: 1. Catalog config (from Convex), 2. Database component
+    if (catalogConfig && !catalogLoading) {
       loadCatalogComponentConfig(catalogConfig)
-    } else if (isAuthenticated && selectedComponentId && myComponents) {
+    } else if (isAuthenticated && selectedComponentId && myComponents && !catalogConfig) {
       loadDatabaseComponent(selectedComponentId, myComponents)
-    } else if (!isAuthenticated && !catalogConfig) {
-      // For unauthenticated users, try to load from catalog
-      loadCatalogComponentById(componentId)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [componentId, catalogConfig, isAuthenticated, selectedComponentId, myComponents])
+  }, [componentId, catalogConfig, catalogLoading, isAuthenticated, selectedComponentId, myComponents])
 
   // Load component from catalog config
   const loadCatalogComponentConfig = (catalogConfig: ComponentConfig) => {
@@ -94,14 +86,6 @@ function EditorPage() {
     }
   }
 
-  // Load component from catalog by ID
-  const loadCatalogComponentById = async (id: string) => {
-    const catalogConfig = await loadCatalogComponent(id)
-    if (catalogConfig) {
-      loadCatalogComponentConfig(catalogConfig)
-    }
-  }
-
   // Load component from database (user's saved components)
   const loadDatabaseComponent = async (
     componentDbId: Id<'components'>,
@@ -114,9 +98,7 @@ function EditorPage() {
     setDescription(component.description || '')
     
     // Try to load from catalog if sourceComponent is specified
-    const sourceId = component.sourceComponent || componentId
-    const catalogConfig = await loadCatalogComponent(sourceId)
-    
+    // Note: Catalog config is already loaded via useCatalogComponent hook
     if (catalogConfig) {
       // Use catalog config as base
       loadCatalogComponentConfig(catalogConfig)
@@ -220,15 +202,31 @@ function EditorPage() {
       return
     }
     
-    if (!selectedComponentId) return
+    if (!config) {
+      alert('Component config not loaded')
+      return
+    }
     
     try {
-      await saveComponent({
+      // Save with full config and current property values
+      const savedId = await saveComponent({
         name,
         description,
+        category: config.metadata.category,
         customizations: propertyValues,
-        registryData: { code: componentCode },
+        registryData: {
+          code: componentCode,
+          config: config, // Store full config for publishing
+        },
+        sourceComponent: componentId, // Reference to catalog component
+        componentId: selectedComponentId, // For updates
       })
+      
+      // Update selectedComponentId if this was a new save
+      if (!selectedComponentId) {
+        setSelectedComponentId(savedId as Id<'components'>)
+      }
+      
       alert('Component saved successfully!')
     } catch (error) {
       console.error('Error saving component:', error)

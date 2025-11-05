@@ -16,10 +16,11 @@ export const saveComponent = mutation({
     name: v.string(),
     description: v.optional(v.string()),
     category: v.optional(v.string()),
-    registryData: v.optional(v.any()),
-    customizations: v.optional(v.any()),
-    sourceComponent: v.optional(v.string()),
+    registryData: v.optional(v.any()), // Contains: { code, config: ComponentConfig }
+    customizations: v.optional(v.any()), // Property values
+    sourceComponent: v.optional(v.string()), // Catalog componentId this was based on
     forkFrom: v.optional(v.id('components')),
+    componentId: v.optional(v.id('components')), // For updates
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity()
@@ -32,15 +33,35 @@ export const saveComponent = mutation({
     const now = Date.now()
     // derive ownerTag from first 6 chars of email if present
     const ownerTag = identity.email ? identity.email.slice(0, 6) : undefined
+    
+    // If componentId is provided, update existing component
+    if (args.componentId) {
+      const existing = await ctx.db.get(args.componentId)
+      if (!existing) throw new Error('Component not found')
+      if (existing.authorId !== user._id) throw new Error('Forbidden')
+      
+      await ctx.db.patch(args.componentId, {
+        name: args.name,
+        description: args.description,
+        category: args.category,
+        registryData: args.registryData,
+        customizations: args.customizations,
+        sourceComponent: args.sourceComponent,
+        updatedAt: now,
+      })
+      return args.componentId
+    }
+    
+    // Create new component (draft)
     const id = await ctx.db.insert('components', {
       name: args.name,
       description: args.description,
       category: args.category,
-      registryData: args.registryData,
-      customizations: args.customizations,
-      sourceComponent: args.sourceComponent,
+      registryData: args.registryData, // Stores code and config
+      customizations: args.customizations, // Property values
+      sourceComponent: args.sourceComponent, // Original catalog componentId
       authorId: user._id,
-      isPublic: false,
+      isPublic: false, // Always start as draft
       ownerTag,
       createdAt: now,
       updatedAt: now,
@@ -62,14 +83,76 @@ export const publishComponent = mutation({
     const component = await ctx.db.get(componentId)
     if (!component) throw new Error('Component not found')
     if (component.authorId !== user._id) throw new Error('Forbidden')
-    // Snapshot the published artifact code (tsx)
-    const code = component.registryData?.code as string | undefined
+    
+    const now = Date.now()
+    
+    // Get the component config from the component's registryData
+    const registryData = component.registryData as any
+    if (!registryData || !registryData.config) {
+      throw new Error('Component config not found in registryData')
+    }
+    
+    const config = registryData.config
+    
+    // Extract componentId from component name or use a generated one
+    const catalogComponentId = component.sourceComponent || 
+      component.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+    
+    // Check if config already exists in catalog
+    const existingConfig = await ctx.db
+      .query('componentConfigs')
+      .withIndex('by_componentId', (q) => q.eq('componentId', catalogComponentId))
+      .first()
+    
+    if (existingConfig) {
+      // Update existing config (only if user is the author)
+      if (existingConfig.authorId !== user._id) {
+        throw new Error('Component with this ID already exists in catalog')
+      }
+      
+      await ctx.db.patch(existingConfig._id, {
+        name: config.metadata?.name || component.name,
+        description: config.metadata?.description || component.description,
+        category: config.metadata?.category || component.category,
+        tags: config.metadata?.tags,
+        author: config.metadata?.author || user.email || 'Unknown',
+        version: config.metadata?.version || '1.0.0',
+        code: config.code || component.registryData?.code || '',
+        properties: config.properties || [],
+        variableMappings: config.variableMappings,
+        dependencies: config.dependencies,
+        files: config.files,
+        updatedAt: now,
+      })
+    } else {
+      // Create new config in catalog
+      await ctx.db.insert('componentConfigs', {
+        componentId: catalogComponentId,
+        name: config.metadata?.name || component.name,
+        description: config.metadata?.description || component.description,
+        category: config.metadata?.category || component.category,
+        tags: config.metadata?.tags,
+        author: config.metadata?.author || user.email || 'Unknown',
+        version: config.metadata?.version || '1.0.0',
+        code: config.code || component.registryData?.code || '',
+        properties: config.properties || [],
+        variableMappings: config.variableMappings,
+        dependencies: config.dependencies,
+        files: config.files,
+        authorId: user._id,
+        createdAt: now,
+        updatedAt: now,
+      })
+    }
+    
+    // Mark component as published
     await ctx.db.patch(componentId, { 
       isPublic: true, 
-      updatedAt: Date.now(),
-      publishedCode: code,
+      updatedAt: now,
+      publishedCode: config.code || component.registryData?.code,
     })
-    return componentId
+    
+    return { componentId, catalogComponentId }
   },
 })
 

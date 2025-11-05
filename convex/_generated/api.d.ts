@@ -8,7 +8,9 @@
  * @module
  */
 
+import type * as componentConfigs from "../componentConfigs.js";
 import type * as components_ from "../components.js";
+import type * as seedComponentConfigs from "../seedComponentConfigs.js";
 import type * as users from "../users.js";
 
 import type {
@@ -26,7 +28,9 @@ import type {
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  componentConfigs: typeof componentConfigs;
   components: typeof components_;
+  seedComponentConfigs: typeof seedComponentConfigs;
   users: typeof users;
 }>;
 declare const fullApiWithMounts: typeof fullApi;

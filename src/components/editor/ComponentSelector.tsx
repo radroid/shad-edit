@@ -1,14 +1,13 @@
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useConvexAuth } from 'convex/react'
 import { Search, Plus, FileCode } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useQuery } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
-import { getAllCatalogComponents } from '@/lib/catalog-loader'
-import type { ComponentConfig } from '@/lib/component-config'
+import { useCatalogComponents } from '@/lib/catalog-hooks'
 
 type ComponentSelectorProps = {
   selectedComponentId?: string
@@ -30,21 +29,15 @@ export default function ComponentSelector({
   onSelectComponent 
 }: ComponentSelectorProps) {
   const [searchQuery, setSearchQuery] = useState('')
-  const [catalogComponents, setCatalogComponents] = useState<Array<{ id: string; config: ComponentConfig }>>([])
   const { isAuthenticated } = useConvexAuth()
+  const { components: catalogComponents } = useCatalogComponents()
   const myComponents = useQuery(api.components.listMyComponents, isAuthenticated ? {} : 'skip')
-  const publicComponents = useQuery(api.components.listPublicComponents, {}) ?? []
 
-  // Load catalog components
-  useEffect(() => {
-    getAllCatalogComponents().then(setCatalogComponents).catch(console.error)
-  }, [])
-
-  // Combine all components: catalog, user's components, and public components
+  // Combine catalog components (public) and user's private components
   const allComponents = useMemo<ComponentItem[]>(() => {
     const items: ComponentItem[] = []
 
-    // Add catalog components (always public)
+    // Add catalog components (publicly available)
     catalogComponents.forEach(({ id, config }) => {
       items.push({
         id,
@@ -57,46 +50,31 @@ export default function ComponentSelector({
       })
     })
 
-    // Add user's components
+    // Add user's private components (drafts)
     if (myComponents) {
       myComponents.forEach((comp) => {
-        items.push({
-          id: comp._id,
-          name: comp.name,
-          description: comp.description,
-          category: comp.category,
-          isPublic: comp.isPublic,
-          isCatalog: false,
-          isMine: true,
-        })
+        // Only show unpublished components (drafts)
+        if (!comp.isPublic) {
+          items.push({
+            id: comp._id,
+            name: comp.name,
+            description: comp.description,
+            category: comp.category,
+            isPublic: false,
+            isCatalog: false,
+            isMine: true,
+          })
+        }
       })
     }
 
-    // Add public components (excluding user's own and catalog items)
-    const existingIds = new Set(items.map(item => item.id))
-    publicComponents.forEach((comp) => {
-      if (!existingIds.has(comp._id)) {
-        items.push({
-          id: comp._id,
-          name: comp.name,
-          description: comp.description,
-          category: comp.category,
-          isPublic: comp.isPublic,
-          isCatalog: false,
-          isMine: false,
-        })
-      }
-    })
-
-    // Sort: user's components first, then catalog, then public
+    // Sort: user's drafts first, then catalog components
     return items.sort((a, b) => {
       if (a.isMine && !b.isMine) return -1
       if (!a.isMine && b.isMine) return 1
-      if (a.isCatalog && !b.isCatalog) return -1
-      if (!a.isCatalog && b.isCatalog) return 1
       return a.name.localeCompare(b.name)
     })
-  }, [catalogComponents, myComponents, publicComponents])
+  }, [catalogComponents, myComponents])
 
   const filteredComponents = useMemo(() => {
     if (!searchQuery.trim()) return allComponents

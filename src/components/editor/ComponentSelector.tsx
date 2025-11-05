@@ -10,8 +10,8 @@ import { api } from '../../../convex/_generated/api'
 import { useCatalogComponents } from '@/lib/catalog-hooks'
 
 type ComponentSelectorProps = {
-  selectedComponentId?: string
-  onSelectComponent: (componentId: string) => void
+  selectedComponentId?: string // Catalog componentId (string) or database ID
+  onSelectComponent: (componentId: string) => void // Catalog componentId (string)
 }
 
 type ComponentItem = {
@@ -37,10 +37,10 @@ export default function ComponentSelector({
   const allComponents = useMemo<ComponentItem[]>(() => {
     const items: ComponentItem[] = []
 
-    // Add catalog components (publicly available)
+    // Add catalog components (publicly available) - these use catalog componentId (string)
     catalogComponents.forEach(({ id, config }) => {
       items.push({
-        id,
+        id, // This is catalog componentId (string like 'button', 'input')
         name: config.metadata.name,
         description: config.metadata.description,
         category: config.metadata.category,
@@ -50,13 +50,13 @@ export default function ComponentSelector({
       })
     })
 
-    // Add user's private components (drafts)
+    // Add user's private components (drafts) - these use database IDs
     if (myComponents) {
       myComponents.forEach((comp) => {
         // Only show unpublished components (drafts)
         if (!comp.isPublic) {
           items.push({
-            id: comp._id,
+            id: comp._id, // This is database ID
             name: comp.name,
             description: comp.description,
             category: comp.category,

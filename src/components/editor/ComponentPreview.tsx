@@ -2,9 +2,10 @@ import { ComponentElement, ComponentStructure } from '@/lib/property-extractor'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent } from '@/components/ui/card'
 import { Monitor, Smartphone, Tablet, Code, Eye } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { renderComponentPreview, ComponentType, getAllComponentTypes } from '@/lib/component-renderer'
 import type { ComponentConfig } from '@/lib/component-config'
+import { codeToHtml } from 'shiki'
 
 type ComponentCanvasProps = {
   componentStructure?: ComponentStructure
@@ -26,6 +27,21 @@ export default function ComponentCanvas({
   const [deviceMode, setDeviceMode] = useState<'desktop' | 'tablet' | 'mobile'>(
     'desktop'
   )
+  const [highlightedCode, setHighlightedCode] = useState<string>('')
+
+  // Highlight code whenever componentCode changes
+  useEffect(() => {
+    if (componentCode) {
+      codeToHtml(componentCode, {
+        lang: 'tsx',
+        theme: 'github-dark',
+      })
+        .then((html) => setHighlightedCode(html))
+        .catch(() => setHighlightedCode(''))
+    } else {
+      setHighlightedCode('')
+    }
+  }, [componentCode])
 
   const deviceSizes = {
     desktop: 'w-full',
@@ -229,10 +245,17 @@ export default function ComponentCanvas({
           </div>
         ) : (
           <Card>
-            <CardContent>
-              <pre className="text-sm overflow-auto">
-                <code>{componentCode || '// No code available'}</code>
-              </pre>
+            <CardContent className="p-0">
+              {highlightedCode ? (
+                <div 
+                  className="overflow-auto max-h-full [&_pre]:m-0 [&_pre]:p-4 [&_pre]:bg-transparent"
+                  dangerouslySetInnerHTML={{ __html: highlightedCode }}
+                />
+              ) : (
+                <pre className="text-sm overflow-auto p-4">
+                  <code>{componentCode || '// No code available'}</code>
+                </pre>
+              )}
             </CardContent>
           </Card>
         )}

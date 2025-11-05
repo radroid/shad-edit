@@ -17,14 +17,6 @@ function Marketplace() {
       </div>
 
       <ComponentsList />
-
-      <div className="mt-10 text-sm text-slate-400">
-        Can’t find what you need? Try the{' '}
-        <a className="underline underline-offset-4" href="/docs/directory">
-          registry directory
-        </a>{' '}
-        for community-maintained components.
-      </div>
     </div>
   )
 }

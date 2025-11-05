@@ -2,6 +2,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
+import { Switch } from '@/components/ui/switch'
 import {
   Select,
   SelectContent,
@@ -78,7 +79,7 @@ export default function PropertyManager({
       case 'select':
         return (
           <Select
-            value={value}
+            value={String(value ?? prop.defaultValue ?? '')}
             onValueChange={(newValue) => onPropertyChange(propertyKey, newValue)}
           >
             <SelectTrigger>
@@ -96,16 +97,17 @@ export default function PropertyManager({
 
       case 'boolean':
         return (
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={value}
-              onChange={(e) =>
-                onPropertyChange(propertyKey, e.target.checked)
+          <div className="flex items-center justify-between">
+            <Label htmlFor={`${selectedElement.id}-${prop.name}`} className="text-sm cursor-pointer">
+              {prop.label}
+            </Label>
+            <Switch
+              id={`${selectedElement.id}-${prop.name}`}
+              checked={value || false}
+              onCheckedChange={(checked) =>
+                onPropertyChange(propertyKey, checked)
               }
-              className="rounded"
             />
-            <span className="text-sm">{prop.label}</span>
           </div>
         )
 
@@ -114,15 +116,16 @@ export default function PropertyManager({
           <div className="flex gap-2">
             <input
               type="color"
-              value={value}
+              value={value || '#000000'}
               onChange={(e) => onPropertyChange(propertyKey, e.target.value)}
-              className="h-9 w-16 rounded border cursor-pointer"
+              className="h-9 w-16 rounded border cursor-pointer bg-transparent"
             />
             <Input
               type="text"
-              value={value}
+              value={value || ''}
               onChange={(e) => onPropertyChange(propertyKey, e.target.value)}
               className="flex-1"
+              placeholder={prop.label}
             />
           </div>
         )
@@ -131,21 +134,24 @@ export default function PropertyManager({
         return (
           <Input
             type="number"
-            value={value}
-            onChange={(e) =>
-              onPropertyChange(propertyKey, parseFloat(e.target.value))
-            }
+            value={value ?? prop.defaultValue ?? ''}
+            onChange={(e) => {
+              const numValue = e.target.value === '' ? undefined : parseFloat(e.target.value)
+              onPropertyChange(propertyKey, numValue)
+            }}
             min={prop.min}
             max={prop.max}
             step={prop.step}
+            placeholder={prop.label}
           />
         )
 
       case 'textarea':
         return (
           <textarea
-            value={value}
+            value={value ?? ''}
             onChange={(e) => onPropertyChange(propertyKey, e.target.value)}
+            placeholder={prop.label}
             className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           />
         )
@@ -155,7 +161,7 @@ export default function PropertyManager({
         return (
           <Input
             type="text"
-            value={value}
+            value={value ?? ''}
             onChange={(e) => onPropertyChange(propertyKey, e.target.value)}
             placeholder={prop.label}
           />
@@ -194,9 +200,11 @@ export default function PropertyManager({
                   <div className="space-y-4 pt-2">
                     {propertiesByCategory[category].map((prop) => (
                       <div key={prop.name} className="space-y-2">
-                        <Label htmlFor={prop.name} className="text-xs">
-                          {prop.label}
-                        </Label>
+                        {prop.type !== 'boolean' && (
+                          <Label htmlFor={prop.name} className="text-xs">
+                            {prop.label}
+                          </Label>
+                        )}
                         {renderPropertyControl(prop)}
                         {prop.description && (
                           <p className="text-xs text-muted-foreground">
@@ -216,9 +224,11 @@ export default function PropertyManager({
                 <div className="space-y-4">
                   {uncategorizedProps.map((prop) => (
                     <div key={prop.name} className="space-y-2">
-                      <Label htmlFor={prop.name} className="text-xs">
-                        {prop.label}
-                      </Label>
+                      {prop.type !== 'boolean' && (
+                        <Label htmlFor={prop.name} className="text-xs">
+                          {prop.label}
+                        </Label>
+                      )}
                       {renderPropertyControl(prop)}
                       {prop.description && (
                         <p className="text-xs text-muted-foreground">

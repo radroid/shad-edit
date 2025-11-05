@@ -47,9 +47,29 @@ export type ComponentStructure = {
 export function extractPropertiesFromConfig(
   config: ComponentConfig
 ): ComponentStructure {
+  const elements = extractElementsFromCode(config.code)
+  
+  // If no elements found from code parsing, create a root element from config properties
+  // This handles cases where the component is a function component without JSX elements in the template
+  if (elements.length === 0 && config.properties.length > 0) {
+    // Create a root element with all non-layout properties
+    const rootProperties = config.properties.filter(
+      (prop) => !prop.category || prop.category !== 'Layout'
+    )
+    
+    if (rootProperties.length > 0) {
+      elements.push({
+        id: 'root',
+        type: config.metadata.name.toLowerCase().replace(/\s+/g, '-'),
+        name: config.metadata.name,
+        properties: rootProperties,
+      })
+    }
+  }
+  
   return {
     name: config.metadata.name,
-    elements: extractElementsFromCode(config.code),
+    elements,
     globalProperties: config.properties.filter(
       (prop) => !prop.category || prop.category === 'Layout'
     ),

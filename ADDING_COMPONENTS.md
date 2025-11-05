@@ -1,53 +1,42 @@
 # Adding Components to the Marketplace Catalog
 
-This guide explains how to add new components to the marketplace catalog in a modular, maintainable way.
+This guide explains how to add new components to the marketplace catalog using Convex.
 
 ## Overview
 
-The component catalog system allows you to:
+The component catalog system uses Convex as the source of truth. All component configurations are stored in the `componentConfigs` table in Convex.
+
+The system allows you to:
 1. Define component code with placeholders for customizable properties
 2. Configure editable properties via JSON configuration
-3. Automatically make components available in the editor and marketplace
-4. Document components with metadata
+3. Store components in Convex database (publicly readable)
+4. Manage components through authenticated mutations
 
-## Directory Structure
+## Prerequisites
 
-```
-src/components/
-├── ui/                    # Internal app components (not editable by users)
-└── catalog/              # Marketplace components (editable by users)
-    └── component-name/   # One directory per component
-        ├── config.json   # Component configuration (required)
-        └── README.md     # Component documentation (optional)
-```
+- You must be authenticated (signed in)
+- Components are stored in Convex `componentConfigs` table
+- Public components are automatically available in marketplace
 
 ## Step-by-Step Guide
 
-### 1. Create Component Directory
+### 1. Prepare Your Component Configuration
 
-Create a new directory under `src/components/catalog/` with a kebab-case name:
+Create a JSON configuration object with your component definition. Use `{{propertyName}}` syntax for placeholders in the code.
 
-```bash
-mkdir -p src/components/catalog/my-awesome-button
-```
+**Example Component Config:**
 
-### 2. Define Component Code
-
-Create your component code template with placeholders for editable properties. Use `{{propertyName}}` syntax for placeholders.
-
-**Example: `src/components/catalog/my-awesome-button/component.tsx`** (optional, can be in config.json)
-
-```tsx
-import { Button } from '@/components/ui/button'
-
-export default function MyAwesomeButton() {
-  return (
-    <Button
-      variant="{{variant}}"
-      size="{{size}}"
-      className="{{className}}"
-      style={{
-        backgroundColor: '{{backgroundColor}}',
+```json
+{
+  "metadata": {
+    "name": "My Awesome Button",
+    "description": "A highly customizable button component",
+    "category": "Form",
+    "tags": ["button", "interactive"],
+    "author": "Your Name",
+    "version": "1.0.0"
+  },
+  "code": "import { Button } from '@/components/ui/button'\n\nexport default function MyAwesomeButton() {\n  return (\n    <Button\n      variant=\"{{variant}}\"\n      size=\"{{size}}\"\n      className=\"{{className}}\"\n      style={{\n        backgroundColor: '{{backgroundColor}}',
         color: '{{color}}'
       }}
     >
@@ -57,11 +46,39 @@ export default function MyAwesomeButton() {
 }
 ```
 
-### 3. Create Configuration File
+### 2. Add Component to Convex
 
-Create a `config.json` file in your component directory. This is the core of the component definition.
+You can add components in two ways:
 
-**Example: `src/components/catalog/my-awesome-button/config.json`**
+#### Option A: Via Convex Dashboard
+
+1. Go to your Convex dashboard
+2. Navigate to Functions → `componentConfigs.upsertComponentConfig`
+3. Fill in the component configuration
+4. Call the mutation
+
+#### Option B: Via Code (React Hook)
+
+```typescript
+import { useMutation } from 'convex/react'
+import { api } from '../convex/_generated/api'
+
+const upsert = useMutation(api.componentConfigs.upsertComponentConfig)
+
+await upsert({
+  componentId: 'my-awesome-button',
+  name: 'My Awesome Button',
+  description: 'A highly customizable button',
+  category: 'Form',
+  code: '...',
+  properties: [...],
+  // ... other fields
+})
+```
+
+### 3. Component Configuration Format
+
+The configuration object follows this structure:
 
 ```json
 {
@@ -176,29 +193,26 @@ Variable mappings define how properties are applied to the code:
 - `content`: Text content inside elements
 - `className`: CSS class name
 
-### 5. Register Component (Auto-Discovery)
+### 4. Component Availability
 
-The catalog loader automatically discovers components using Vite's glob import. As long as your component follows the directory structure and has a `config.json` file, it will be automatically registered.
+Once added to Convex, components are immediately available:
 
-If you need manual registration, you can add it in `src/lib/catalog-loader.ts`:
-
-```typescript
-import myButtonConfig from '../components/catalog/my-awesome-button/config.json'
-
-registerComponent('my-awesome-button', async () => myButtonConfig)
-```
-
-### 6. Accessing Components
-
-Once registered, components are available:
-
-- **In the Editor**: `/editor/my-awesome-button`
 - **In the Marketplace**: Listed automatically in `/marketplace`
-- **In Documentation**: `/docs/my-awesome-button`
+- **In the Editor**: Accessible at `/editor/{componentId}`
+- **Publicly Readable**: No authentication required to view
 
 ## Best Practices
 
-### 1. Replace Hardcoded Values
+### 1. Use Unique Component IDs
+
+Component IDs must be unique across the catalog. Use kebab-case:
+
+- ✅ `my-awesome-button`
+- ✅ `custom-input-field`
+- ❌ `MyAwesomeButton` (camelCase)
+- ❌ `my awesome button` (spaces)
+
+### 2. Replace Hardcoded Values
 
 Replace hardcoded styling with placeholders:
 
@@ -277,22 +291,21 @@ Use `select` type for properties with limited, known options:
 
 ## Component Workflow
 
-### Development Workflow
+### Adding a New Component
 
-1. **Create** component directory and `config.json`
-2. **Define** code template with placeholders
-3. **Configure** properties and variable mappings
-4. **Test** in editor at `/editor/component-name`
-5. **Document** in README.md (optional)
+1. **Prepare** your component configuration (JSON format)
+2. **Add to Convex** via dashboard or mutation
+3. **Verify** component appears in marketplace
+4. **Test** in editor at `/editor/{componentId}`
 
 ### User Workflow
 
 1. **Browse** marketplace at `/marketplace`
-2. **View** component documentation at `/docs/component-name`
-3. **Edit** component in editor at `/editor/component-name`
+2. **View** component details in overlay (preview, code, properties)
+3. **Edit** component in editor at `/editor/{componentId}`
 4. **Customize** properties via the property panel
-5. **Save** variant (stored in database under user)
-6. **Publish** variant (creates new public component config)
+5. **Save** as draft (stored in `components` table, private)
+6. **Publish** (moves to `componentConfigs` table, public)
 
 ## Database Integration
 
@@ -308,16 +321,19 @@ The system automatically:
 
 ## Example: Complete Component
 
-See `src/components/catalog/example-button/config.json` for a complete example.
+See the seed script (`scripts/seed-component-configs.ts`) for examples of complete component configurations.
+
+You can also check existing components in your Convex dashboard under the `componentConfigs` table.
 
 ## Troubleshooting
 
 ### Component Not Appearing
 
-1. Check that `config.json` exists and is valid JSON
-2. Verify the directory name matches the component ID
+1. Check that component exists in Convex `componentConfigs` table
+2. Verify the `componentId` is correct and unique
 3. Check browser console for loading errors
-4. Ensure the component is registered (check `catalog-loader.ts`)
+4. Ensure you're using the correct component ID (kebab-case)
+5. Verify Convex queries are working (check network tab)
 
 ### Properties Not Working
 

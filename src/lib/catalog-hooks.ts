@@ -43,12 +43,12 @@ export function useCatalogComponent(componentId: string | undefined) {
   const config = useQuery(
     api.componentConfigs.getComponentConfigById,
     componentId ? { componentId } : 'skip'
-  ) as ComponentConfig | null | undefined
+  )
   
   if (!componentId) return { config: null, isLoading: false }
   if (config === undefined) return { config: null, isLoading: true }
   if (!config) return { config: null, isLoading: false }
   
-  return { config, isLoading: false }
+  return { config: config as ComponentConfig, isLoading: false }
 }
 

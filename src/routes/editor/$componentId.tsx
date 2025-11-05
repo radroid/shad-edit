@@ -4,12 +4,11 @@ import ComponentCanvas from '@/components/editor/ComponentPreview'
 import PropertyManager from '@/components/editor/PropertyManager'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useMutation, useQuery } from 'convex/react'
+import { useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 import { useState, useEffect, useMemo } from 'react'
 import {
   extractPropertiesFromConfig,
-  getDefaultPropertyValues,
   ComponentStructure,
 } from '@/lib/property-extractor'
 import { Save, Upload, Undo, Redo, LogIn } from 'lucide-react'
@@ -24,21 +23,25 @@ export const Route = createFileRoute('/editor/$componentId')({
 })
 
 function EditorPage() {
-  const { componentId } = Route.useParams()
+  const { componentId } = Route.useParams() // This is catalog componentId (string) or "new"
   const navigate = useNavigate()
   const { isAuthenticated } = useConvexAuth()
-  const { config: catalogConfig, isLoading: catalogLoading } = useCatalogComponent(componentId)
+  
+  // Load catalog component if componentId is provided and not "new"
+  const { config: catalogConfig, isLoading: catalogLoading } = useCatalogComponent(
+    componentId && componentId !== 'new' ? componentId : undefined
+  )
   
   const [name, setName] = useState('Untitled Component')
   const [description, setDescription] = useState('')
   
   // State management
-  const [selectedComponentId, setSelectedComponentId] = useState<Id<'components'> | undefined>()
+  const [selectedDbComponentId, setSelectedDbComponentId] = useState<Id<'components'> | undefined>() // Database ID for saved drafts
   const [selectedElementId, setSelectedElementId] = useState<string | undefined>()
   const [propertyValues, setPropertyValues] = useState<Record<string, any>>({})
   const [componentStructure, setComponentStructure] = useState<ComponentStructure | undefined>()
   const [componentCode, setComponentCode] = useState<string>('')
-  const [config, setConfig] = useState<ComponentConfig | null>(catalogConfig)
+  const [config, setConfig] = useState<ComponentConfig | null>(null)
   
   // History for undo/redo
   const [history, setHistory] = useState<Record<string, any>[]>([])
@@ -46,39 +49,83 @@ function EditorPage() {
 
   const saveComponent = useMutation(api.components.saveComponent)
   const publishComponent = useMutation(api.components.publishComponent)
-  // Only query if authenticated
-  const myComponents = useQuery(api.components.listMyComponents, isAuthenticated ? {} : 'skip')
 
-  // Load component from catalog or database
+  // Load component from catalog when componentId changes
   useEffect(() => {
-    // Priority: 1. Catalog config (from Convex), 2. Database component
-    if (catalogConfig && !catalogLoading) {
+    if (componentId === 'new') {
+      // Reset to empty state
+      setName('Untitled Component')
+      setDescription('')
+      setConfig(null)
+      setComponentStructure(undefined)
+      setComponentCode('')
+      setPropertyValues({})
+      setSelectedElementId(undefined)
+      setSelectedDbComponentId(undefined)
+      return
+    }
+
+    // Skip if still loading
+    if (catalogLoading) {
+      return
+    }
+
+    // Load catalog component config when available
+    if (catalogConfig) {
       loadCatalogComponentConfig(catalogConfig)
-    } else if (isAuthenticated && selectedComponentId && myComponents && !catalogConfig) {
-      loadDatabaseComponent(selectedComponentId, myComponents)
+    } else if (componentId && componentId !== 'new') {
+      // Component not found - reset state
+      setName('Component Not Found')
+      setDescription('')
+      setConfig(null)
+      setComponentStructure(undefined)
+      setComponentCode('')
+      setPropertyValues({})
+      setSelectedElementId(undefined)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [componentId, catalogConfig, catalogLoading, isAuthenticated, selectedComponentId, myComponents])
+  }, [componentId, catalogConfig, catalogLoading])
 
   // Load component from catalog config
   const loadCatalogComponentConfig = (catalogConfig: ComponentConfig) => {
+    console.log('Loading catalog config:', catalogConfig)
+    
     setConfig(catalogConfig)
     setName(catalogConfig.metadata.name)
     setDescription(catalogConfig.metadata.description || '')
     
     // Extract properties from config
     const structure = extractPropertiesFromConfig(catalogConfig)
+    console.log('Extracted structure:', structure)
     setComponentStructure(structure)
     
     // Initialize property values with defaults
+    // Key format: elementId.propertyName for element properties, or just propertyName for global
     const defaults: Record<string, any> = {}
-    catalogConfig.properties.forEach((prop) => {
+    
+    // Add global properties
+    structure.globalProperties.forEach((prop) => {
       defaults[prop.name] = prop.defaultValue
     })
+    
+    // Add element properties
+    structure.elements.forEach((element) => {
+      element.properties.forEach((prop) => {
+        const key = `${element.id}.${prop.name}`
+        defaults[key] = prop.defaultValue
+      })
+    })
+    
+    console.log('Initialized property values:', defaults)
     setPropertyValues(defaults)
     
-    // Set initial code
-    setComponentCode(catalogConfig.code)
+    // Set initial code with placeholders replaced
+    const initialCode = applyPropertiesToCode(
+      catalogConfig.code,
+      defaults,
+      catalogConfig.variableMappings
+    )
+    setComponentCode(initialCode)
     
     // Select first element by default
     if (structure.elements.length > 0) {
@@ -86,69 +133,13 @@ function EditorPage() {
     }
   }
 
-  // Load component from database (user's saved components)
-  const loadDatabaseComponent = async (
-    componentDbId: Id<'components'>,
-    myComponents: any[]
-  ) => {
-    const component = myComponents.find((c) => c._id === componentDbId)
-    if (!component) return
-
-    setName(component.name)
-    setDescription(component.description || '')
-    
-    // Try to load from catalog if sourceComponent is specified
-    // Note: Catalog config is already loaded via useCatalogComponent hook
-    if (catalogConfig) {
-      // Use catalog config as base
-      loadCatalogComponentConfig(catalogConfig)
-      
-      // Apply saved customizations
-      const saved = component.customizations || {}
-      setPropertyValues({ ...propertyValues, ...saved })
-      
-      // Use saved code if available, otherwise use catalog code with applied properties
-      if (component.registryData?.code) {
-        setComponentCode(component.registryData.code)
-      } else {
-        const renderedCode = applyPropertiesToCode(
-          catalogConfig.code,
-          { ...propertyValues, ...saved },
-          catalogConfig.variableMappings
-        )
-        setComponentCode(renderedCode)
-      }
-    } else {
-      // Fallback: use component name and saved code
-      const code = component.registryData?.code || ''
-      if (code) {
-        setComponentCode(code)
-        // Create minimal config for extraction
-        const fallbackConfig: ComponentConfig = {
-          metadata: { 
-            name: component.name, 
-            description: component.description || '' 
-          },
-          code,
-          properties: [],
-        }
-        const structure = extractPropertiesFromConfig(fallbackConfig)
-        setComponentStructure(structure)
-        
-        const defaults = getDefaultPropertyValues(structure)
-        const saved = component.customizations || {}
-        setPropertyValues({ ...defaults, ...saved })
-        
-        if (structure.elements.length > 0) {
-          setSelectedElementId(structure.elements[0].id)
-        }
-      }
-    }
-  }
-
-  // Handle component selection
+  // Handle component selection from ComponentSelector
+  // compId can be catalog componentId (string) or database ID (string)
   const handleSelectComponent = (compId: string) => {
-    setSelectedComponentId(compId as Id<'components'>)
+    // Navigate to editor with the componentId
+    // If it's a database ID (starts with specific pattern), we need to handle differently
+    // For now, treat all as catalog componentIds and navigate
+    navigate({ to: '/editor/$componentId', params: { componentId: compId } })
   }
 
   // Handle element selection
@@ -182,15 +173,37 @@ function EditorPage() {
   // Undo/Redo functionality
   const handleUndo = () => {
     if (historyIndex > 0) {
+      const previousValues = history[historyIndex - 1]
       setHistoryIndex(historyIndex - 1)
-      setPropertyValues(history[historyIndex - 1])
+      setPropertyValues(previousValues)
+      
+      // Update code when undoing
+      if (config) {
+        const renderedCode = applyPropertiesToCode(
+          config.code,
+          previousValues,
+          config.variableMappings
+        )
+        setComponentCode(renderedCode)
+      }
     }
   }
 
   const handleRedo = () => {
     if (historyIndex < history.length - 1) {
+      const nextValues = history[historyIndex + 1]
       setHistoryIndex(historyIndex + 1)
-      setPropertyValues(history[historyIndex + 1])
+      setPropertyValues(nextValues)
+      
+      // Update code when redoing
+      if (config) {
+        const renderedCode = applyPropertiesToCode(
+          config.code,
+          nextValues,
+          config.variableMappings
+        )
+        setComponentCode(renderedCode)
+      }
     }
   }
 
@@ -218,13 +231,13 @@ function EditorPage() {
           code: componentCode,
           config: config, // Store full config for publishing
         },
-        sourceComponent: componentId, // Reference to catalog component
-        componentId: selectedComponentId, // For updates
+        sourceComponent: componentId !== 'new' ? componentId : undefined, // Reference to catalog component
+        componentId: selectedDbComponentId, // For updates (database ID)
       })
       
-      // Update selectedComponentId if this was a new save
-      if (!selectedComponentId) {
-        setSelectedComponentId(savedId as Id<'components'>)
+      // Update selectedDbComponentId if this was a new save
+      if (!selectedDbComponentId) {
+        setSelectedDbComponentId(savedId as Id<'components'>)
       }
       
       alert('Component saved successfully!')
@@ -242,12 +255,19 @@ function EditorPage() {
       return
     }
     
-    if (!selectedComponentId) return
+    if (!selectedDbComponentId) {
+      // Need to save first
+      await handleSave()
+      return
+    }
     
     try {
-      await handleSave()
-      await publishComponent({ componentId: selectedComponentId })
+      await publishComponent({ componentId: selectedDbComponentId })
       alert('Component published successfully!')
+      // Refresh to show updated component
+      if (componentId !== 'new') {
+        navigate({ to: '/editor/$componentId', params: { componentId }, replace: true })
+      }
     } catch (error) {
       console.error('Error publishing component:', error)
       alert('Failed to publish component')
@@ -299,7 +319,7 @@ function EditorPage() {
                   size="sm"
                   variant="outline"
                   onClick={handleSave}
-                  disabled={!selectedComponentId}
+                  disabled={!config}
                 >
                   <Save className="h-4 w-4 mr-2" />
                   Save Draft
@@ -307,7 +327,7 @@ function EditorPage() {
                 <Button
                   size="sm"
                   onClick={handlePublish}
-                  disabled={!selectedComponentId}
+                  disabled={!config}
                 >
                   <Upload className="h-4 w-4 mr-2" />
                   Publish
@@ -333,7 +353,7 @@ function EditorPage() {
         {isAuthenticated && (
           <div className="w-64 shrink-0 overflow-hidden">
             <ComponentSelector
-              selectedComponentId={selectedComponentId}
+              selectedComponentId={componentId}
               onSelectComponent={handleSelectComponent}
             />
           </div>

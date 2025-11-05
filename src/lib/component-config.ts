@@ -103,30 +103,13 @@ export type ComponentConfig = {
   }>
 }
 
-/**
- * Load a component configuration from a JSON file
- */
-export async function loadComponentConfig(
-  componentId: string
-): Promise<ComponentConfig | null> {
-  try {
-    // In TanStack Start, we can import JSON files directly
-    // For now, we'll use dynamic imports
-    const config = await import(`../components/catalog/${componentId}/config.json`)
-    return config.default || config
-  } catch (error) {
-    console.error(`Failed to load config for component ${componentId}:`, error)
-    return null
-  }
-}
 
 /**
- * Get all available component IDs from the catalog
+ * @deprecated Use Convex queries directly
+ * Component configs are now stored in Convex database
  */
 export async function getAllComponentIds(): Promise<string[]> {
-  // In a real implementation, this would scan the catalog directory
-  // For now, we'll maintain a registry or use a build-time generation
-  // This can be enhanced with a build script that scans the directory
+  console.warn('getAllComponentIds is deprecated. Use Convex queries instead.')
   return []
 }
 

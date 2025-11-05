@@ -27,9 +27,17 @@ export default function ComponentsList() {
     return catalogItems
   }, [catalogComponents, catalogLoading])
 
+  if (catalogLoading) {
+    return (
+      <div className="text-sm text-slate-400 py-8">Loading components...</div>
+    )
+  }
+
   if (!items.length) {
     return (
-      <div className="text-sm text-slate-400">No components yet. Check back soon.</div>
+      <div className="text-sm text-slate-400 py-8">
+        No components available. Components need to be seeded in the database.
+      </div>
     )
   }
 

@@ -3,11 +3,14 @@ import { v } from 'convex/values'
 
 export default defineSchema({
   users: defineTable({
-    name: v.string(),
+    externalId: v.string(),
+    name: v.optional(v.string()),
     email: v.optional(v.string()),
     avatarUrl: v.optional(v.string()),
     createdAt: v.number(),
-  }).index('by_email', ['email']),
+  })
+    .index('by_email', ['email'])
+    .index('by_external', ['externalId']),
 
   components: defineTable({
     name: v.string(),
@@ -22,5 +25,6 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index('by_public', ['isPublic']).index('by_author', ['authorId']),
 })
+
 
 

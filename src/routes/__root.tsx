@@ -3,10 +3,12 @@ import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 
 import Header from '../components/Header'
+import { useEffect } from 'react'
 
 import appCss from '../styles.css?url'
-import { ConvexProvider } from 'convex/react'
+import { ConvexProvider, useMutation } from 'convex/react'
 import { convex } from '../lib/convex'
+import { api } from '../../convex/_generated/api'
 
 export const Route = createRootRoute({
   head: () => ({
@@ -33,6 +35,14 @@ export const Route = createRootRoute({
   shellComponent: RootDocument,
 })
 
+function EnsureUser() {
+  const ensureUser = useMutation(api.users.ensureUser)
+  useEffect(() => {
+    ensureUser().catch(() => {})
+  }, [ensureUser])
+  return null
+}
+
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
@@ -41,6 +51,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         <ConvexProvider client={convex}>
+          <EnsureUser />
           <Header />
           {children}
         </ConvexProvider>

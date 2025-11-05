@@ -21,6 +21,9 @@ export default defineSchema({
     customizations: v.optional(v.any()),
     sourceComponent: v.optional(v.string()),
     isPublic: v.boolean(),
+    // snapshot of published artifact code (tsx)
+    publishedCode: v.optional(v.string()),
+    ownerTag: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index('by_public', ['isPublic']).index('by_author', ['authorId']),

@@ -286,6 +286,32 @@ export function extractPropertiesFromCode(
             defaultValue: 'Open Dialog',
             category: 'Content',
           })
+        } else if (tagLower === 'navigationmenu') {
+          elementProps.push({
+            name: 'triggerText',
+            label: 'Trigger Text',
+            type: 'string',
+            defaultValue: 'Open Menu',
+            category: 'Content',
+          })
+          elementProps.push({
+            name: 'items',
+            label: 'Menu Items (comma-separated)',
+            type: 'textarea',
+            defaultValue: 'Item 1, Item 2, Item 3',
+            category: 'Content',
+          })
+          elementProps.push({
+            name: 'orientation',
+            label: 'Orientation',
+            type: 'select',
+            defaultValue: 'horizontal',
+            category: 'Appearance',
+            options: [
+              { label: 'Horizontal', value: 'horizontal' },
+              { label: 'Vertical', value: 'vertical' },
+            ],
+          })
         } else if (tagLower === 'label') {
           elementProps.push({
             name: 'text',

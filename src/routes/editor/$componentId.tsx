@@ -61,15 +61,21 @@ function EditorPage() {
         setName(component.name)
         setDescription(component.description || '')
         
-        // Extract component code (from registryData or generate sample)
+        // Extract component code (from registryData or generate minimal sample)
+        const source = (component.sourceComponent || 'button').toLowerCase()
+        const tag = 
+          source.includes('button') ? 'button' :
+          source.includes('input') ? 'input' :
+          source.includes('card') ? 'Card' :
+          source.includes('dialog') ? 'Dialog' :
+          source.includes('navigation') ? 'NavigationMenu' :
+          source.includes('badge') ? 'Badge' :
+          source.includes('label') ? 'Label' : 'div'
+
         const sampleCode = `
 export default function ${component.name.replace(/\s+/g, '')}() {
   return (
-    <div>
-      <h2>Welcome to ${component.name}</h2>
-      <p>This is a sample component</p>
-      <button>Click me</button>
-    </div>
+    <${tag}${tag==='input' ? ' placeholder=""' : ''}${tag==='button' ? '' : tag==='input' ? ' />' : ' />'}${tag==='button' ? '>Click me</button>' : ''}
   )
 }
 `
@@ -91,6 +97,9 @@ export default function ${component.name.replace(/\s+/g, '')}() {
         if (structure.elements.length > 0) {
           setSelectedElementId(structure.elements[0].id)
         }
+      } else {
+        // Selected an item not in user's components (likely a public/fallback item)
+        loadDemoComponent(String(selectedComponentId))
       }
     }
   }, [selectedComponentId, myComponents, isAuthenticated])
@@ -128,14 +137,19 @@ export default function ${component.name.replace(/\s+/g, '')}() {
     setName(componentInfo.name)
     setDescription(componentInfo.description)
 
+    const tag = 
+      componentType === 'button' ? 'button' :
+      componentType === 'input' ? 'input' :
+      componentType === 'card' ? 'Card' :
+      componentType === 'dialog' ? 'Dialog' :
+      componentType === 'navigation-menu' ? 'NavigationMenu' :
+      componentType === 'badge' ? 'Badge' :
+      componentType === 'label' ? 'Label' : 'div'
+
     const sampleCode = `
 export default function ${componentName.replace(/\s+/g, '')}() {
   return (
-    <div>
-      <h2>${componentInfo.name}</h2>
-      <p>${componentInfo.description}</p>
-      <${componentType === 'button' ? 'button' : 'div'}>Sample ${componentType}</${componentType === 'button' ? 'button' : 'div'}>
-    </div>
+    <${tag}${tag==='input' ? ' placeholder=""' : ''}${tag==='button' ? '' : tag==='input' ? ' />' : ' />'}${tag==='button' ? '>Click me</button>' : ''}
   )
 }
 `

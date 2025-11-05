@@ -107,20 +107,9 @@ export default function ComponentCanvas({
           e.stopPropagation()
           onSelectElement(element.id)
         }}
-        className={`relative transition-all cursor-pointer inline-block ${
-          isSelected
-            ? 'ring-2 ring-primary ring-offset-2'
-            : 'hover:ring-1 hover:ring-primary/50'
-        }`}
+        className="relative inline-block"
         style={elementStyles}
       >
-        {/* Element type indicator */}
-        {isSelected && (
-          <div className="absolute -top-6 left-0 text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-t z-10">
-            {element.name}
-          </div>
-        )}
-
         {componentContent}
       </div>
     )
@@ -130,16 +119,7 @@ export default function ComponentCanvas({
     // Fallback rendering for basic HTML elements
     switch (element.type) {
       case 'div':
-        return (
-          <div className="min-h-[100px] p-4">
-            {element.children?.map(renderElement)}
-            {!element.children && (
-              <div className="text-muted-foreground text-sm">
-                Container
-              </div>
-            )}
-          </div>
-        )
+        return <div>{element.children?.map(renderElement)}</div>
       case 'h1':
         return <h1 className="text-2xl font-semibold">{props.text || 'Heading 1'}</h1>
       case 'h2':
@@ -147,9 +127,9 @@ export default function ComponentCanvas({
       case 'h3':
         return <h3 className="text-lg font-semibold">{props.text || 'Heading 3'}</h3>
       case 'p':
-        return <p className="text-sm text-muted-foreground">{props.text || 'Paragraph text'}</p>
+        return <p className="text-sm text-muted-foreground">{props.text}</p>
       case 'span':
-        return <span>{props.text || 'Text'}</span>
+        return <span>{props.text}</span>
       case 'a':
         return <a href={props.href || '#'}>{props.text || 'Link'}</a>
       case 'img':

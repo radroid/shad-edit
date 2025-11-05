@@ -2,6 +2,7 @@ import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import { useState } from 'react'
+import { useConvexAuth } from 'convex/react'
 import { Search, Plus, FileCode } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useQuery } from 'convex/react'
@@ -17,9 +18,24 @@ export default function ComponentSelector({
   onSelectComponent 
 }: ComponentSelectorProps) {
   const [searchQuery, setSearchQuery] = useState('')
-  const myComponents = useQuery(api.components.listMyComponents)
+  const { isAuthenticated } = useConvexAuth()
+  const myComponents = useQuery(api.components.listMyComponents, isAuthenticated ? {} : 'skip')
+  const publicComponents = useQuery(api.components.listPublicComponents, {}) ?? []
 
-  const filteredComponents = myComponents?.filter((comp) =>
+  const fallback = [
+    { _id: 'shadcn-button', name: 'Button', description: 'A clickable button', category: 'Form', isPublic: true },
+    { _id: 'shadcn-input', name: 'Input', description: 'Text input field', category: 'Form', isPublic: true },
+    { _id: 'shadcn-dialog', name: 'Dialog', description: 'Modal dialog', category: 'Overlay', isPublic: true },
+    { _id: 'shadcn-card', name: 'Card', description: 'Content container', category: 'Layout', isPublic: true },
+    { _id: 'shadcn-navigation-menu', name: 'Navigation Menu', description: 'Navigation with dropdowns', category: 'Navigation', isPublic: true },
+  ] as any[]
+
+  const source = (myComponents && myComponents.length > 0)
+    ? myComponents
+    : (publicComponents && publicComponents.length > 0)
+      ? publicComponents
+      : fallback
+  const filteredComponents = source?.filter((comp) =>
     comp.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
@@ -86,11 +102,11 @@ export default function ComponentSelector({
             </button>
           ))}
 
-          {!filteredComponents || filteredComponents.length === 0 && (
+          {!filteredComponents || filteredComponents.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground text-sm">
               {searchQuery ? 'No components found' : 'No components yet'}
             </div>
-          )}
+          ) : null}
         </div>
       </ScrollArea>
     </div>

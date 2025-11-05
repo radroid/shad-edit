@@ -19,6 +19,7 @@ export const saveComponent = mutation({
     registryData: v.optional(v.any()),
     customizations: v.optional(v.any()),
     sourceComponent: v.optional(v.string()),
+    forkFrom: v.optional(v.id('components')),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity()
@@ -29,10 +30,18 @@ export const saveComponent = mutation({
       .unique()
     if (!user) throw new Error('User not found')
     const now = Date.now()
+    // derive ownerTag from first 6 chars of email if present
+    const ownerTag = identity.email ? identity.email.slice(0, 6) : undefined
     const id = await ctx.db.insert('components', {
-      ...args,
+      name: args.name,
+      description: args.description,
+      category: args.category,
+      registryData: args.registryData,
+      customizations: args.customizations,
+      sourceComponent: args.sourceComponent,
       authorId: user._id,
       isPublic: false,
+      ownerTag,
       createdAt: now,
       updatedAt: now,
     })
@@ -53,7 +62,13 @@ export const publishComponent = mutation({
     const component = await ctx.db.get(componentId)
     if (!component) throw new Error('Component not found')
     if (component.authorId !== user._id) throw new Error('Forbidden')
-    await ctx.db.patch(componentId, { isPublic: true, updatedAt: Date.now() })
+    // Snapshot the published artifact code (tsx)
+    const code = component.registryData?.code as string | undefined
+    await ctx.db.patch(componentId, { 
+      isPublic: true, 
+      updatedAt: Date.now(),
+      publishedCode: code,
+    })
     return componentId
   },
 })
@@ -144,6 +159,40 @@ export const createVariant = mutation({
       await ctx.db.patch(variantId, { latestVersion: 1, updatedAt: now })
     }
     return variantId
+  },
+})
+
+// Create a private fork of a public component for a specific user
+export const forkComponent = mutation({
+  args: { componentId: v.id('components') },
+  handler: async (ctx, { componentId }) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) throw new Error('Not authenticated')
+    const user = await ctx.db
+      .query('users')
+      .withIndex('by_external', (q) => q.eq('externalId', identity.subject))
+      .unique()
+    if (!user) throw new Error('User not found')
+
+    const base = await ctx.db.get(componentId)
+    if (!base || !base.isPublic) throw new Error('Base component not public')
+
+    const now = Date.now()
+    const ownerTag = identity.email ? identity.email.slice(0, 6) : undefined
+    const newId = await ctx.db.insert('components', {
+      name: `${base.name}${ownerTag ? ` @${ownerTag}` : ''}`,
+      description: base.description,
+      category: base.category,
+      authorId: user._id,
+      registryData: base.registryData,
+      customizations: base.customizations,
+      sourceComponent: base.sourceComponent,
+      isPublic: false,
+      ownerTag,
+      createdAt: now,
+      updatedAt: now,
+    })
+    return newId
   },
 })
 

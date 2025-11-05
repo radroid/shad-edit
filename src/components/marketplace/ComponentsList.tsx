@@ -3,21 +3,26 @@ import { useQuery } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 import ComponentCard from './ComponentCard'
 import { useNavigate } from '@tanstack/react-router'
+import { ComponentType } from '@/lib/component-renderer'
 
 export default function ComponentsList() {
   const components = useQuery(api.components.listPublicComponents) ?? []
   const navigate = useNavigate()
 
   const items = useMemo(() => {
-    const dbItems = components.map((c) => ({ id: c._id, name: c.name }))
+    const dbItems = components.map((c) => ({ 
+      id: c._id, 
+      name: c.name,
+      type: c.sourceComponent as ComponentType | undefined
+    }))
     if (dbItems.length > 0) return dbItems
-    // Fallback: show five shadcn components available locally
+    // Fallback: show shadcn components available locally
     return [
-      { id: 'shadcn-button', name: 'Button' },
-      { id: 'shadcn-input', name: 'Input' },
-      { id: 'shadcn-dialog', name: 'Dialog' },
-      { id: 'shadcn-card', name: 'Card' },
-      { id: 'shadcn-navigation-menu', name: 'Navigation Menu' },
+      { id: 'shadcn-button', name: 'Button', type: 'button' as ComponentType },
+      { id: 'shadcn-input', name: 'Input', type: 'input' as ComponentType },
+      { id: 'shadcn-dialog', name: 'Dialog', type: 'dialog' as ComponentType },
+      { id: 'shadcn-card', name: 'Card', type: 'card' as ComponentType },
+      { id: 'shadcn-navigation-menu', name: 'Navigation Menu', type: 'navigation-menu' as ComponentType },
     ]
   }, [components])
 
@@ -33,6 +38,7 @@ export default function ComponentsList() {
         <div key={item.id}>
           <ComponentCard
             title={item.name}
+            componentType={item.type}
             onClick={() => navigate({ to: `/marketplace/${item.id}` })}
           />
         </div>

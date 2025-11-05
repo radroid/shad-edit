@@ -9,6 +9,8 @@ import {
 import { cn } from '@/lib/utils'
 import { Home, Package } from 'lucide-react'
 import { ModeToggle } from '@/components/ModeToggle'
+import { SignInButton, SignUpButton, UserButton } from '@clerk/clerk-react'
+import { Authenticated, Unauthenticated } from 'convex/react'
 
 export default function Header() {
   return (
@@ -53,12 +55,17 @@ export default function Header() {
 
         <div className="flex items-center gap-3 md:gap-4">
           <ModeToggle />
-          <Link to="/auth/sign-in">
-            <Button variant="ghost" size="sm">Sign in</Button>
-          </Link>
-          <Link to="/auth/sign-up">
-            <Button size="sm">Sign up</Button>
-          </Link>
+          <Authenticated>
+            <UserButton afterSignOutUrl="/" />
+          </Authenticated>
+          <Unauthenticated>
+            <SignInButton mode="modal">
+              <Button variant="ghost" size="sm">Sign in</Button>
+            </SignInButton>
+            <SignUpButton mode="modal">
+              <Button size="sm">Sign up</Button>
+            </SignUpButton>
+          </Unauthenticated>
         </div>
       </div>
     </header>

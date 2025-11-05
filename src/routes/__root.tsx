@@ -6,7 +6,9 @@ import Header from '../components/Header'
 import { useEffect } from 'react'
 
 import appCss from '../styles.css?url'
-import { ConvexProvider, useMutation } from 'convex/react'
+import { useMutation, Authenticated } from 'convex/react'
+import { ConvexProviderWithClerk } from 'convex/react-clerk'
+import { ClerkProvider, useAuth } from '@clerk/clerk-react'
 import { convex } from '../lib/convex'
 import { api } from '../../convex/_generated/api'
 
@@ -50,11 +52,15 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <ConvexProvider client={convex}>
-          <EnsureUser />
-          <Header />
-          {children}
-        </ConvexProvider>
+        <ClerkProvider publishableKey={(import.meta as any).env?.VITE_CLERK_PUBLISHABLE_KEY}>
+          <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
+            <Authenticated>
+              <EnsureUser />
+            </Authenticated>
+            <Header />
+            {children}
+          </ConvexProviderWithClerk>
+        </ClerkProvider>
         <TanStackDevtools
           config={{
             position: 'bottom-right',

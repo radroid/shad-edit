@@ -63,11 +63,14 @@ export const listMyComponents = query({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity()
     if (!identity) throw new Error('Not authenticated')
-    const user = await ctx.db
+    let user = await ctx.db
       .query('users')
       .withIndex('by_external', (q) => q.eq('externalId', identity.subject))
       .unique()
-    if (!user) throw new Error('User not found')
+    if (!user) {
+      // In a query we cannot write. If user is missing, return empty list.
+      return []
+    }
     return ctx.db
       .query('components')
       .withIndex('by_author', (q) => q.eq('authorId', user._id))

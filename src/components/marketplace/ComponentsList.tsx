@@ -1,6 +1,6 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import ComponentCard from './ComponentCard'
-import { Link } from '@tanstack/react-router'
+import ComponentOverlay from './ComponentOverlay'
 import { useCatalogComponents } from '@/lib/catalog-hooks'
 
 type ComponentItem = {
@@ -12,6 +12,7 @@ type ComponentItem = {
 
 export default function ComponentsList() {
   const { components: catalogComponents, isLoading: catalogLoading } = useCatalogComponents()
+  const [selectedComponentId, setSelectedComponentId] = useState<string | null>(null)
 
   const items = useMemo(() => {
     if (catalogLoading) return []
@@ -42,23 +43,26 @@ export default function ComponentsList() {
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-      {items.map((item) => (
-        <Link
-          key={String(item.id)}
-          to="/editor/$componentId"
-          params={{ componentId: String(item.id) }}
-          preload="intent"
-          className="block"
-        >
+    <>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        {items.map((item) => (
           <ComponentCard
+            key={String(item.id)}
             title={item.name}
             description={item.description}
             category={item.category}
+            onClick={() => setSelectedComponentId(String(item.id))}
           />
-        </Link>
-      ))}
-    </div>
+        ))}
+      </div>
+      {selectedComponentId && (
+        <ComponentOverlay
+          open={!!selectedComponentId}
+          onOpenChange={(open) => !open && setSelectedComponentId(null)}
+          componentId={selectedComponentId}
+        />
+      )}
+    </>
   )
 }
 

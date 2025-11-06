@@ -22,19 +22,61 @@ import {
   ComponentElement,
   getPropertyCategories,
 } from '@/lib/property-extractor'
-import { Settings2, Box } from 'lucide-react'
+import { Settings2, Box, RotateCcw } from 'lucide-react'
+import { HexColorPicker } from 'react-colorful'
+import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+
+type Variant = {
+  name: string
+  displayName?: string
+  properties?: Record<string, any>
+}
 
 type PropertyManagerProps = {
   selectedElement?: ComponentElement
   propertyValues: Record<string, any>
   onPropertyChange: (propertyName: string, value: any) => void
+  isForked?: boolean // Deprecated - advanced styles are now always available
+  variants?: Variant[]
+  selectedVariant?: string
+  onVariantChange?: (variantName: string) => void
+  sizeOptions?: Array<{ label: string; value: string }>
+  selectedSize?: string
+  onSizeChange?: (size: string) => void
+  onResetOverrides?: (elementId: string) => void
 }
 
 export default function PropertyManager({
   selectedElement,
   propertyValues,
   onPropertyChange,
+  isForked = false, // Deprecated - kept for backward compatibility
+  variants = [],
+  selectedVariant = 'default',
+  onVariantChange,
+  sizeOptions,
+  selectedSize,
+  onSizeChange,
+  onResetOverrides,
 }: PropertyManagerProps) {
+  const [colorPickerOpen, setColorPickerOpen] = useState<string | null>(null)
+  
+  // Check if there are any advanced style overrides
+  const hasOverrides = selectedElement ? [
+    'backgroundColor',
+    'color',
+    'padding',
+    'margin',
+    'fontSize',
+    'fontWeight',
+    'borderWidth',
+    'borderColor',
+    'borderRadius',
+  ].some((prop) => {
+    const value = propertyValues[`${selectedElement.id}.${prop}`]
+    return value !== undefined && value !== null && value !== ''
+  }) : false
   if (!selectedElement) {
     return (
       <div className="flex flex-col h-full border-l">
@@ -56,10 +98,15 @@ export default function PropertyManager({
     )
   }
 
-  const categories = getPropertyCategories(selectedElement.properties)
+  // Filter out variant and size properties since we have dedicated controls for them
+  const filteredProperties = selectedElement.properties.filter(
+    (prop) => prop.name !== 'variant' && prop.name !== 'size'
+  )
+  
+  const categories = getPropertyCategories(filteredProperties)
   const propertiesByCategory = categories.reduce(
     (acc, category) => {
-      acc[category] = selectedElement.properties.filter(
+      acc[category] = filteredProperties.filter(
         (prop) => prop.category === category
       )
       return acc
@@ -67,7 +114,7 @@ export default function PropertyManager({
     {} as Record<string, PropertyDefinition[]>
   )
 
-  const uncategorizedProps = selectedElement.properties.filter(
+  const uncategorizedProps = filteredProperties.filter(
     (prop) => !prop.category
   )
 
@@ -112,14 +159,30 @@ export default function PropertyManager({
         )
 
       case 'color':
+        const colorValue = value || '#000000'
+        const isColorPickerOpen = colorPickerOpen === propertyKey
         return (
-          <div className="flex gap-2">
-            <input
-              type="color"
-              value={value || '#000000'}
-              onChange={(e) => onPropertyChange(propertyKey, e.target.value)}
-              className="h-9 w-16 rounded border cursor-pointer bg-transparent"
+          <div className="flex gap-2 relative">
+            <div
+              className="h-9 w-16 rounded border cursor-pointer"
+              style={{ backgroundColor: colorValue }}
+              onClick={() => setColorPickerOpen(isColorPickerOpen ? null : propertyKey)}
             />
+            {isColorPickerOpen && (
+              <div className="absolute z-10 top-12 left-0 p-4 bg-background border rounded-lg shadow-lg">
+                <HexColorPicker
+                  color={colorValue}
+                  onChange={(color) => onPropertyChange(propertyKey, color)}
+                />
+                <Input
+                  type="text"
+                  value={colorValue}
+              onChange={(e) => onPropertyChange(propertyKey, e.target.value)}
+                  className="mt-2"
+                  placeholder={prop.label}
+            />
+              </div>
+            )}
             <Input
               type="text"
               value={value || ''}
@@ -176,6 +239,51 @@ export default function PropertyManager({
           <Settings2 className="h-5 w-5" />
           <h2 className="text-lg font-semibold">Properties</h2>
         </div>
+        
+        {/* Variant Selector */}
+        {variants.length > 0 && (
+          <div className="space-y-2 mb-3">
+            <Label className="text-xs">Variant</Label>
+            <Select
+              value={selectedVariant}
+              onValueChange={(value) => onVariantChange?.(value)}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {variants.map((variant) => (
+                  <SelectItem key={variant.name} value={variant.name}>
+                    {variant.displayName || variant.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        
+        {/* Size Selector - for components that support it */}
+        {sizeOptions && sizeOptions.length > 0 && selectedSize !== undefined && (
+          <div className="space-y-2 mb-3">
+            <Label className="text-xs">Size</Label>
+            <Select
+              value={selectedSize}
+              onValueChange={(value) => onSizeChange?.(value)}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {sizeOptions.map((option: { label: string; value: string }) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        
         <div className="space-y-1">
           <div className="text-sm font-medium">{selectedElement.name}</div>
           <Badge variant="secondary" className="text-xs">
@@ -238,6 +346,216 @@ export default function PropertyManager({
                     </div>
                   ))}
                 </div>
+              </>
+            )}
+
+            {/* Advanced customization options - always available when element is selected */}
+            {selectedElement && (
+              <>
+                <Separator className="my-4" />
+                <AccordionItem value="advanced-styles">
+                  <AccordionTrigger className="text-sm font-medium">
+                    Advanced Styles / Overrides
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="space-y-4 pt-2">
+                      {/* Reset Button */}
+                      {hasOverrides && (
+                        <div className="pb-2 border-b">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => {
+                              // Use the dedicated reset handler if available, otherwise fall back to individual resets
+                              if (onResetOverrides && selectedElement) {
+                                onResetOverrides(selectedElement.id)
+                              } else if (selectedElement) {
+                                // Fallback: reset each property individually
+                                const overrideProperties = [
+                                  'backgroundColor',
+                                  'color',
+                                  'borderColor',
+                                  'padding',
+                                  'margin',
+                                  'fontSize',
+                                  'fontWeight',
+                                  'borderWidth',
+                                  'borderRadius',
+                                ]
+                                overrideProperties.forEach((prop) => {
+                                  const propKey = `${selectedElement.id}.${prop}`
+                                  onPropertyChange(propKey, '')
+                                })
+                              }
+                            }}
+                          >
+                            <RotateCcw className="h-4 w-4 mr-2" />
+                            Reset to Default
+                          </Button>
+                        </div>
+                      )}
+                      
+                      {/* Colors */}
+                      <div className="space-y-2">
+                        <Label className="text-xs">Fill Color (Background)</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Overrides the component's fill/background color
+                        </p>
+                        <div className="flex gap-2 relative">
+                          <div
+                            className="h-9 w-16 rounded border cursor-pointer"
+                            style={{ backgroundColor: propertyValues[`${selectedElement.id}.backgroundColor`] || '#ffffff' }}
+                            onClick={() => setColorPickerOpen(colorPickerOpen === `${selectedElement.id}.backgroundColor` ? null : `${selectedElement.id}.backgroundColor`)}
+                          />
+                          {colorPickerOpen === `${selectedElement.id}.backgroundColor` && (
+                            <div className="absolute z-10 top-12 left-0 p-4 bg-background border rounded-lg shadow-lg">
+                              <HexColorPicker
+                                color={propertyValues[`${selectedElement.id}.backgroundColor`] || '#ffffff'}
+                                onChange={(color) => onPropertyChange(`${selectedElement.id}.backgroundColor`, color)}
+                              />
+                            </div>
+                          )}
+                          <Input
+                            type="text"
+                            value={propertyValues[`${selectedElement.id}.backgroundColor`] || ''}
+                            onChange={(e) => onPropertyChange(`${selectedElement.id}.backgroundColor`, e.target.value)}
+                            className="flex-1"
+                            placeholder="#ffffff or hsl(...)"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Text Color</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Overrides the component's text color
+                        </p>
+                        <div className="flex gap-2 relative">
+                          <div
+                            className="h-9 w-16 rounded border cursor-pointer"
+                            style={{ backgroundColor: propertyValues[`${selectedElement.id}.color`] || '#000000' }}
+                            onClick={() => setColorPickerOpen(colorPickerOpen === `${selectedElement.id}.color` ? null : `${selectedElement.id}.color`)}
+                          />
+                          {colorPickerOpen === `${selectedElement.id}.color` && (
+                            <div className="absolute z-10 top-12 left-0 p-4 bg-background border rounded-lg shadow-lg">
+                              <HexColorPicker
+                                color={propertyValues[`${selectedElement.id}.color`] || '#000000'}
+                                onChange={(color) => onPropertyChange(`${selectedElement.id}.color`, color)}
+                              />
+                            </div>
+                          )}
+                          <Input
+                            type="text"
+                            value={propertyValues[`${selectedElement.id}.color`] || ''}
+                            onChange={(e) => onPropertyChange(`${selectedElement.id}.color`, e.target.value)}
+                            className="flex-1"
+                            placeholder="#000000"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Spacing */}
+                      <div className="space-y-2">
+                        <Label className="text-xs">Padding</Label>
+                        <Input
+                          type="text"
+                          value={propertyValues[`${selectedElement.id}.padding`] || ''}
+                          onChange={(e) => onPropertyChange(`${selectedElement.id}.padding`, e.target.value)}
+                          placeholder="e.g., 16px or 1rem"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Margin</Label>
+                        <Input
+                          type="text"
+                          value={propertyValues[`${selectedElement.id}.margin`] || ''}
+                          onChange={(e) => onPropertyChange(`${selectedElement.id}.margin`, e.target.value)}
+                          placeholder="e.g., 16px or 1rem"
+                        />
+                      </div>
+
+                      {/* Typography */}
+                      <div className="space-y-2">
+                        <Label className="text-xs">Font Size</Label>
+                        <Input
+                          type="text"
+                          value={propertyValues[`${selectedElement.id}.fontSize`] || ''}
+                          onChange={(e) => onPropertyChange(`${selectedElement.id}.fontSize`, e.target.value)}
+                          placeholder="e.g., 16px or 1rem"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Font Weight</Label>
+                        <Select
+                          value={String(propertyValues[`${selectedElement.id}.fontWeight`] || '')}
+                          onValueChange={(value) => onPropertyChange(`${selectedElement.id}.fontWeight`, value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select font weight" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="normal">Normal</SelectItem>
+                            <SelectItem value="bold">Bold</SelectItem>
+                            <SelectItem value="100">100</SelectItem>
+                            <SelectItem value="200">200</SelectItem>
+                            <SelectItem value="300">300</SelectItem>
+                            <SelectItem value="400">400</SelectItem>
+                            <SelectItem value="500">500</SelectItem>
+                            <SelectItem value="600">600</SelectItem>
+                            <SelectItem value="700">700</SelectItem>
+                            <SelectItem value="800">800</SelectItem>
+                            <SelectItem value="900">900</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Borders */}
+                      <div className="space-y-2">
+                        <Label className="text-xs">Border Width</Label>
+                        <Input
+                          type="text"
+                          value={propertyValues[`${selectedElement.id}.borderWidth`] || ''}
+                          onChange={(e) => onPropertyChange(`${selectedElement.id}.borderWidth`, e.target.value)}
+                          placeholder="e.g., 1px"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Border Color</Label>
+                        <div className="flex gap-2 relative">
+                          <div
+                            className="h-9 w-16 rounded border cursor-pointer"
+                            style={{ backgroundColor: propertyValues[`${selectedElement.id}.borderColor`] || '#000000' }}
+                            onClick={() => setColorPickerOpen(colorPickerOpen === `${selectedElement.id}.borderColor` ? null : `${selectedElement.id}.borderColor`)}
+                          />
+                          {colorPickerOpen === `${selectedElement.id}.borderColor` && (
+                            <div className="absolute z-10 top-12 left-0 p-4 bg-background border rounded-lg shadow-lg">
+                              <HexColorPicker
+                                color={propertyValues[`${selectedElement.id}.borderColor`] || '#000000'}
+                                onChange={(color) => onPropertyChange(`${selectedElement.id}.borderColor`, color)}
+                              />
+                            </div>
+                          )}
+                          <Input
+                            type="text"
+                            value={propertyValues[`${selectedElement.id}.borderColor`] || ''}
+                            onChange={(e) => onPropertyChange(`${selectedElement.id}.borderColor`, e.target.value)}
+                            className="flex-1"
+                            placeholder="#000000"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Border Radius</Label>
+                        <Input
+                          type="text"
+                          value={propertyValues[`${selectedElement.id}.borderRadius`] || ''}
+                          onChange={(e) => onPropertyChange(`${selectedElement.id}.borderRadius`, e.target.value)}
+                          placeholder="e.g., 4px or 0.5rem"
+                        />
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
               </>
             )}
           </Accordion>

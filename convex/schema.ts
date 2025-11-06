@@ -12,89 +12,72 @@ export default defineSchema({
     .index('by_email', ['email'])
     .index('by_external', ['externalId']),
 
-  components: defineTable({
-    name: v.string(),
-    description: v.optional(v.string()),
-    category: v.optional(v.string()),
-    authorId: v.id('users'),
-    registryData: v.optional(v.any()),
-    customizations: v.optional(v.any()),
-    sourceComponent: v.optional(v.string()),
-    isPublic: v.boolean(),
-    // snapshot of published artifact code (tsx)
-    publishedCode: v.optional(v.string()),
-    ownerTag: v.optional(v.string()),
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  }).index('by_public', ['isPublic']).index('by_author', ['authorId']),
-
-  // Each component can have multiple variants (e.g., sizes, styles)
-  variants: defineTable({
-    componentId: v.id('components'),
-    name: v.string(),
-    // points to the latest version for quick access
-    latestVersion: v.optional(v.number()),
-    createdBy: v.id('users'),
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  })
-    .index('by_component', ['componentId'])
-    .index('by_component_name', ['componentId', 'name']),
-
-  // Immutable version history for a variant
-  variantVersions: defineTable({
-    variantId: v.id('variants'),
-    version: v.number(), // monotonically increasing
-    // complete artifact snapshot for rendering and rollbacks
-    code: v.optional(v.string()),
-    schema: v.optional(v.any()),
-    // minimal structured changeset to understand what changed
-    changeset: v.optional(v.any()),
-    createdBy: v.id('users'),
-    createdAt: v.number(),
-  })
-    .index('by_variant', ['variantId'])
-    .index('by_variant_version', ['variantId', 'version']),
-
-  // Component configurations - publicly readable catalog
-  componentConfigs: defineTable({
-    // Unique identifier (e.g., 'button', 'input')
-    componentId: v.string(),
-    
-    // Metadata fields (flattened for easy querying)
+  // Public catalog components (read-only for users, admin-created)
+  catalogComponents: defineTable({
+    componentId: v.string(),        // e.g., 'button', 'card'
     name: v.string(),
     description: v.optional(v.string()),
     category: v.optional(v.string()),
     tags: v.optional(v.array(v.string())),
     author: v.optional(v.string()),
-    version: v.optional(v.string()),
+    version: v.string(),
     
-    // Component code template
+    // Component code with Tailwind classes
     code: v.string(),
     
-    // Properties array (stored as JSON)
-    properties: v.array(v.any()),
+    // Extractable Tailwind properties (padding, margin, colors, etc.)
+    tailwindProperties: v.array(v.any()),
     
-    // Variable mappings (optional, stored as JSON)
-    variableMappings: v.optional(v.array(v.any())),
+    // Default variant configurations
+    variants: v.array(v.any()),
     
-    // Dependencies (optional, stored as JSON)
     dependencies: v.optional(v.any()),
-    
-    // Files (optional, stored as JSON)
     files: v.optional(v.array(v.any())),
     
-    // Author information
-    authorId: v.id('users'),
-    
-    // Timestamps
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index('by_componentId', ['componentId'])
-    .index('by_category', ['category'])
+    .index('by_category', ['category']),
+
+  // User projects with global theme config
+  projects: defineTable({
+    name: v.string(),
+    description: v.optional(v.string()),
+    authorId: v.id('users'),
+    
+    // Global theme (like tweakcn)
+    globalTheme: v.any(), // Using v.any() because Convex doesn't support hyphens in object keys
+    
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
     .index('by_author', ['authorId']),
+
+  // Project-specific component instances
+  projectComponents: defineTable({
+    projectId: v.id('projects'),
+    catalogComponentId: v.string(), // Reference to catalogComponents
+    
+    name: v.string(), // e.g., 'button-username'
+    
+    // Selected variant name
+    selectedVariant: v.string(),
+    
+    // Variant-specific property overrides
+    variantProperties: v.any(),
+    
+    // Custom Tailwind class overrides (user edits)
+    tailwindOverrides: v.any(),
+    
+    // Modified code (if user customized beyond props)
+    customCode: v.optional(v.string()),
+    
+    order: v.number(), // Display order in project
+    
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index('by_project', ['projectId'])
+    .index('by_project_catalog', ['projectId', 'catalogComponentId']),
 })
-
-
-

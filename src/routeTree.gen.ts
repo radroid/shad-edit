@@ -10,15 +10,23 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProjectsIndexRouteImport } from './routes/projects/index'
 import { Route as MarketplaceIndexRouteImport } from './routes/marketplace/index'
 import { Route as MarketplaceComponentIdRouteImport } from './routes/marketplace/$componentId'
-import { Route as EditorComponentIdRouteImport } from './routes/editor/$componentId'
 import { Route as AuthSignUpRouteImport } from './routes/auth/sign-up'
 import { Route as AuthSignInRouteImport } from './routes/auth/sign-in'
+import { Route as ProjectsProjectIdIndexRouteImport } from './routes/projects/$projectId/index'
+import { Route as ProjectsProjectIdComponentsIndexRouteImport } from './routes/projects/$projectId/components/index'
+import { Route as ProjectsProjectIdComponentsComponentIdRouteImport } from './routes/projects/$projectId/components/$componentId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProjectsIndexRoute = ProjectsIndexRouteImport.update({
+  id: '/projects/',
+  path: '/projects/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MarketplaceIndexRoute = MarketplaceIndexRouteImport.update({
@@ -31,11 +39,6 @@ const MarketplaceComponentIdRoute = MarketplaceComponentIdRouteImport.update({
   path: '/marketplace/$componentId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const EditorComponentIdRoute = EditorComponentIdRouteImport.update({
-  id: '/editor/$componentId',
-  path: '/editor/$componentId',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthSignUpRoute = AuthSignUpRouteImport.update({
   id: '/auth/sign-up',
   path: '/auth/sign-up',
@@ -46,31 +49,57 @@ const AuthSignInRoute = AuthSignInRouteImport.update({
   path: '/auth/sign-in',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProjectsProjectIdIndexRoute = ProjectsProjectIdIndexRouteImport.update({
+  id: '/projects/$projectId/',
+  path: '/projects/$projectId/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProjectsProjectIdComponentsIndexRoute =
+  ProjectsProjectIdComponentsIndexRouteImport.update({
+    id: '/projects/$projectId/components/',
+    path: '/projects/$projectId/components/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ProjectsProjectIdComponentsComponentIdRoute =
+  ProjectsProjectIdComponentsComponentIdRouteImport.update({
+    id: '/projects/$projectId/components/$componentId',
+    path: '/projects/$projectId/components/$componentId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-up': typeof AuthSignUpRoute
-  '/editor/$componentId': typeof EditorComponentIdRoute
   '/marketplace/$componentId': typeof MarketplaceComponentIdRoute
   '/marketplace': typeof MarketplaceIndexRoute
+  '/projects': typeof ProjectsIndexRoute
+  '/projects/$projectId': typeof ProjectsProjectIdIndexRoute
+  '/projects/$projectId/components/$componentId': typeof ProjectsProjectIdComponentsComponentIdRoute
+  '/projects/$projectId/components': typeof ProjectsProjectIdComponentsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-up': typeof AuthSignUpRoute
-  '/editor/$componentId': typeof EditorComponentIdRoute
   '/marketplace/$componentId': typeof MarketplaceComponentIdRoute
   '/marketplace': typeof MarketplaceIndexRoute
+  '/projects': typeof ProjectsIndexRoute
+  '/projects/$projectId': typeof ProjectsProjectIdIndexRoute
+  '/projects/$projectId/components/$componentId': typeof ProjectsProjectIdComponentsComponentIdRoute
+  '/projects/$projectId/components': typeof ProjectsProjectIdComponentsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-up': typeof AuthSignUpRoute
-  '/editor/$componentId': typeof EditorComponentIdRoute
   '/marketplace/$componentId': typeof MarketplaceComponentIdRoute
   '/marketplace/': typeof MarketplaceIndexRoute
+  '/projects/': typeof ProjectsIndexRoute
+  '/projects/$projectId/': typeof ProjectsProjectIdIndexRoute
+  '/projects/$projectId/components/$componentId': typeof ProjectsProjectIdComponentsComponentIdRoute
+  '/projects/$projectId/components/': typeof ProjectsProjectIdComponentsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -78,34 +107,46 @@ export interface FileRouteTypes {
     | '/'
     | '/auth/sign-in'
     | '/auth/sign-up'
-    | '/editor/$componentId'
     | '/marketplace/$componentId'
     | '/marketplace'
+    | '/projects'
+    | '/projects/$projectId'
+    | '/projects/$projectId/components/$componentId'
+    | '/projects/$projectId/components'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth/sign-in'
     | '/auth/sign-up'
-    | '/editor/$componentId'
     | '/marketplace/$componentId'
     | '/marketplace'
+    | '/projects'
+    | '/projects/$projectId'
+    | '/projects/$projectId/components/$componentId'
+    | '/projects/$projectId/components'
   id:
     | '__root__'
     | '/'
     | '/auth/sign-in'
     | '/auth/sign-up'
-    | '/editor/$componentId'
     | '/marketplace/$componentId'
     | '/marketplace/'
+    | '/projects/'
+    | '/projects/$projectId/'
+    | '/projects/$projectId/components/$componentId'
+    | '/projects/$projectId/components/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthSignInRoute: typeof AuthSignInRoute
   AuthSignUpRoute: typeof AuthSignUpRoute
-  EditorComponentIdRoute: typeof EditorComponentIdRoute
   MarketplaceComponentIdRoute: typeof MarketplaceComponentIdRoute
   MarketplaceIndexRoute: typeof MarketplaceIndexRoute
+  ProjectsIndexRoute: typeof ProjectsIndexRoute
+  ProjectsProjectIdIndexRoute: typeof ProjectsProjectIdIndexRoute
+  ProjectsProjectIdComponentsComponentIdRoute: typeof ProjectsProjectIdComponentsComponentIdRoute
+  ProjectsProjectIdComponentsIndexRoute: typeof ProjectsProjectIdComponentsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -115,6 +156,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/projects/': {
+      id: '/projects/'
+      path: '/projects'
+      fullPath: '/projects'
+      preLoaderRoute: typeof ProjectsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/marketplace/': {
@@ -131,13 +179,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarketplaceComponentIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/editor/$componentId': {
-      id: '/editor/$componentId'
-      path: '/editor/$componentId'
-      fullPath: '/editor/$componentId'
-      preLoaderRoute: typeof EditorComponentIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/auth/sign-up': {
       id: '/auth/sign-up'
       path: '/auth/sign-up'
@@ -152,6 +193,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthSignInRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/projects/$projectId/': {
+      id: '/projects/$projectId/'
+      path: '/projects/$projectId'
+      fullPath: '/projects/$projectId'
+      preLoaderRoute: typeof ProjectsProjectIdIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/projects/$projectId/components/': {
+      id: '/projects/$projectId/components/'
+      path: '/projects/$projectId/components'
+      fullPath: '/projects/$projectId/components'
+      preLoaderRoute: typeof ProjectsProjectIdComponentsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/projects/$projectId/components/$componentId': {
+      id: '/projects/$projectId/components/$componentId'
+      path: '/projects/$projectId/components/$componentId'
+      fullPath: '/projects/$projectId/components/$componentId'
+      preLoaderRoute: typeof ProjectsProjectIdComponentsComponentIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -159,9 +221,13 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthSignInRoute: AuthSignInRoute,
   AuthSignUpRoute: AuthSignUpRoute,
-  EditorComponentIdRoute: EditorComponentIdRoute,
   MarketplaceComponentIdRoute: MarketplaceComponentIdRoute,
   MarketplaceIndexRoute: MarketplaceIndexRoute,
+  ProjectsIndexRoute: ProjectsIndexRoute,
+  ProjectsProjectIdIndexRoute: ProjectsProjectIdIndexRoute,
+  ProjectsProjectIdComponentsComponentIdRoute:
+    ProjectsProjectIdComponentsComponentIdRoute,
+  ProjectsProjectIdComponentsIndexRoute: ProjectsProjectIdComponentsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

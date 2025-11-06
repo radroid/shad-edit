@@ -1,13 +1,30 @@
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { useNavigate } from '@tanstack/react-router'
+import { useNavigate, useSearch } from '@tanstack/react-router'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCatalogComponent } from '@/lib/catalog-hooks'
 import { applyPropertiesToCode } from '@/lib/component-config'
 import { useState, useEffect } from 'react'
-import { Code, Settings } from 'lucide-react'
+import { Code, Plus } from 'lucide-react'
+import { useQuery, useMutation } from 'convex/react'
+import { api } from '../../../convex/_generated/api'
+import { useConvexAuth } from 'convex/react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  CodeBlock,
+  CodeBlockBody,
+  CodeBlockContent,
+  CodeBlockCopyButton,
+  CodeBlockItem,
+} from '@/components/kibo-ui/code-block'
 
 export default function ComponentOverlay({ 
   open, 
@@ -19,8 +36,21 @@ export default function ComponentOverlay({
   componentId: string 
 }) {
   const navigate = useNavigate()
+  const search = useSearch({ from: '/marketplace/' })
+  const { isAuthenticated } = useConvexAuth()
   const { config, isLoading } = useCatalogComponent(componentId)
   const [propertyValues, setPropertyValues] = useState<Record<string, any>>({})
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('')
+  
+  const projects = useQuery(api.projects?.listUserProjects as any, isAuthenticated ? {} : 'skip')
+  const addComponentToProject = useMutation(api.projectComponents?.addComponentToProject as any)
+  
+  // Set project from URL search params if available
+  useEffect(() => {
+    if ((search as any)?.projectId) {
+      setSelectedProjectId((search as any).projectId)
+    }
+  }, [search])
 
   // Initialize property values with defaults from config
   useEffect(() => {
@@ -84,11 +114,57 @@ export default function ComponentOverlay({
                 ))}
               </div>
             </div>
+            <div className="flex gap-2">
+              {isAuthenticated && projects && projects.length > 0 && (
+                <>
+                  <Select
+                    value={selectedProjectId}
+                    onValueChange={setSelectedProjectId}
+                  >
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Select project" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projects?.map((project: any) => (
+                        <SelectItem key={project._id} value={project._id}>
+                          {project.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
             <Button
-              onClick={() => navigate({ to: '/editor/$componentId', params: { componentId } })}>
-              <Settings className="h-4 w-4 mr-2" />
-              Edit in Editor
+                    onClick={async () => {
+                      if (!selectedProjectId) {
+                        alert('Please select a project')
+                        return
+                      }
+                      try {
+                        const newComponentId = await addComponentToProject({
+                          projectId: selectedProjectId as any,
+                          catalogComponentId: componentId,
+                        })
+                        onOpenChange(false)
+                        // Navigate to the new component editor
+                        navigate({
+                          to: '/projects/$projectId/components/$componentId',
+                          params: {
+                            projectId: selectedProjectId,
+                            componentId: newComponentId as string,
+                          },
+                        })
+                      } catch (error) {
+                        console.error('Error adding component:', error)
+                        alert('Failed to add component to project')
+                      }
+                    }}
+                    disabled={!selectedProjectId}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add to Project
             </Button>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Main Content with Tabs */}
@@ -108,7 +184,7 @@ export default function ComponentOverlay({
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="rounded-lg bg-gradient-to-br from-slate-900 to-slate-800 border border-slate-700 p-8">
+                  <div className="rounded-lg bg-linear-to-br from-slate-900 to-slate-800 border border-slate-700 p-8">
                     <div className="bg-background rounded-lg border p-8 min-h-[400px] flex items-center justify-center">
                       <div className="w-full space-y-4">
                         {/* TODO: Render actual component from config */}
@@ -133,16 +209,42 @@ export default function ComponentOverlay({
                     The component code with current property values applied
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  {renderedCode ? (
-                    <pre className="bg-muted p-4 rounded-lg overflow-x-auto text-sm">
-                      <code>{renderedCode}</code>
-                    </pre>
-                  ) : (
-                    <pre className="bg-muted p-4 rounded-lg overflow-x-auto text-sm">
-                      <code>{config.code}</code>
-                    </pre>
-                  )}
+                <CardContent className="p-0">
+                  <CodeBlock
+                    data={[
+                      {
+                        language: 'tsx',
+                        filename: 'component.tsx',
+                        code: renderedCode || config.code || '',
+                      },
+                    ]}
+                    defaultValue="tsx"
+                    className="border-0 rounded-none w-full m-0"
+                  >
+                    <div className="flex items-center justify-end border-b bg-secondary/50 p-2 m-0">
+                      <CodeBlockCopyButton />
+                    </div>
+                    <CodeBlockBody>
+                      {(item) => (
+                        <CodeBlockItem
+                          key={item.language}
+                          value={item.language}
+                          lineNumbers
+                          className="overflow-y-auto overflow-x-hidden max-h-[600px] [&_.shiki]:bg-card [&_code]:whitespace-pre-wrap! [&_code]:break-words! [&_code]:overflow-x-hidden! [&_code]:block! [&_code]:grid-none! [&_.line]:whitespace-pre-wrap! [&_.line]:break-words! [&_pre]:m-0! [&_pre]:py-0! [&_pre]:px-0!"
+                        >
+                          <CodeBlockContent 
+                            language="tsx"
+                            themes={{
+                              light: "github-light",
+                              dark: "github-dark-default",
+                            }}
+                          >
+                            {item.code}
+                          </CodeBlockContent>
+                        </CodeBlockItem>
+                      )}
+                    </CodeBlockBody>
+                  </CodeBlock>
                 </CardContent>
               </Card>
             </TabsContent>

@@ -7,7 +7,7 @@ import {
   NavigationMenuLink,
 } from '@/components/ui/navigation-menu'
 import { cn } from '@/lib/utils'
-import { Home, Package } from 'lucide-react'
+import { Package, FolderKanban } from 'lucide-react'
 import { ModeToggle } from '@/components/ModeToggle'
 import { SignInButton, SignUpButton, UserButton } from '@clerk/clerk-react'
 import { Authenticated, Unauthenticated } from 'convex/react'
@@ -26,19 +26,6 @@ export default function Header() {
               <NavigationMenuItem>
                 <NavigationMenuLink asChild>
                   <Link
-                    to="/"
-                    className={cn(
-                      'group inline-flex h-10 w-max items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-active:bg-accent/50 data-[state=open]:bg-accent/50'
-                    )}
-                  >
-                    <Home className="mr-2 h-4 w-4" />
-                    Home
-                  </Link>
-                </NavigationMenuLink>
-              </NavigationMenuItem>
-              <NavigationMenuItem>
-                <NavigationMenuLink asChild>
-                  <Link
                     to="/marketplace"
                     className={cn(
                       'group inline-flex h-10 w-max items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-active:bg-accent/50 data-[state=open]:bg-accent/50'
@@ -46,6 +33,19 @@ export default function Header() {
                   >
                     <Package className="mr-2 h-4 w-4" />
                     Marketplace
+                  </Link>
+                </NavigationMenuLink>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <NavigationMenuLink asChild>
+                  <Link
+                    to="/projects"
+                    className={cn(
+                      'group inline-flex h-10 w-max items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-active:bg-accent/50 data-[state=open]:bg-accent/50'
+                    )}
+                  >
+                    <FolderKanban className="mr-2 h-4 w-4" />
+                    Projects
                   </Link>
                 </NavigationMenuLink>
               </NavigationMenuItem>

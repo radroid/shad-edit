@@ -7,48 +7,66 @@ import { api } from '../../convex/_generated/api'
 import type { ComponentConfig } from './component-config'
 
 /**
- * Hook to get all component configs
+ * Hook to get all catalog components
  */
 export function useCatalogComponents() {
-  const configs = useQuery(api.componentConfigs.listPublicComponentConfigs, {})
+  const components = useQuery(api.catalogComponents.listCatalogComponents, {})
   
-  if (!configs) return { components: [], isLoading: true }
+  if (components === undefined) return { components: [], isLoading: true }
   
-  const components: Array<{ id: string; config: ComponentConfig }> = configs.map((config) => ({
-    id: config.componentId,
+  const formatted: Array<{ id: string; config: ComponentConfig }> = components.map((comp) => ({
+    id: comp.componentId,
     config: {
       metadata: {
-        name: config.name,
-        description: config.description,
-        category: config.category,
-        tags: config.tags,
-        author: config.author,
-        version: config.version,
+        name: comp.name,
+        description: comp.description,
+        category: comp.category,
+        tags: comp.tags,
+        author: comp.author,
+        version: comp.version,
       },
-      code: config.code,
-      properties: config.properties,
-      variableMappings: config.variableMappings,
-      dependencies: config.dependencies,
-      files: config.files,
-    } as ComponentConfig,
+      code: comp.code,
+      properties: comp.tailwindProperties || [],
+      variableMappings: [],
+      dependencies: comp.dependencies,
+      files: comp.files,
+      variants: comp.variants || [],
+    } as ComponentConfig & { variants?: any[] },
   }))
   
-  return { components, isLoading: false }
+  return { components: formatted, isLoading: false }
 }
 
 /**
- * Hook to get a single component config by ID
+ * Hook to get a single catalog component by ID
  */
 export function useCatalogComponent(componentId: string | undefined) {
-  const config = useQuery(
-    api.componentConfigs.getComponentConfigById,
+  const component = useQuery(
+    api.catalogComponents.getCatalogComponent,
     componentId ? { componentId } : 'skip'
   )
   
   if (!componentId) return { config: null, isLoading: false }
-  if (config === undefined) return { config: null, isLoading: true }
-  if (!config) return { config: null, isLoading: false }
+  if (component === undefined) return { config: null, isLoading: true }
+  if (!component) return { config: null, isLoading: false }
   
-  return { config: config as ComponentConfig, isLoading: false }
+  const config: ComponentConfig & { variants?: any[] } = {
+    metadata: {
+      name: component.name,
+      description: component.description || '',
+      category: component.category,
+      tags: component.tags,
+      author: component.author,
+      version: component.version,
+    },
+    code: component.code,
+    properties: component.tailwindProperties || [],
+    variableMappings: [],
+    dependencies: component.dependencies || undefined,
+    files: component.files || undefined,
+    variants: component.variants || [],
+  }
+  
+  return { config, isLoading: false }
 }
 

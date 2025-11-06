@@ -10,15 +10,15 @@ function App() {
         <h1 className="text-4xl font-bold tracking-tight text-white">
           Shadcn Component Marketplace
         </h1>
-        <p className="text-slate-300">
+        <p className="text-slate-600 dark:text-slate-300">
           Browse, customize, and publish shadcn components powered by TanStack Start and Convex.
         </p>
         <div className="flex items-center justify-center gap-3">
           <Link to="/marketplace">
-            <Button>Open Marketplace</Button>
+            <Button>Browse Marketplace</Button>
           </Link>
-          <Link to="/editor/$componentId" params={{ componentId: 'new' }}>
-            <Button variant="secondary">New Component</Button>
+          <Link to="/projects">
+            <Button variant="secondary">My Projects</Button>
           </Link>
         </div>
       </div>

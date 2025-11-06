@@ -2,7 +2,7 @@ import { ComponentElement, ComponentStructure } from '@/lib/property-extractor'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent } from '@/components/ui/card'
 import { Monitor, Smartphone, Tablet, Code, Eye } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { renderComponentPreview, ComponentType, getAllComponentTypes } from '@/lib/component-renderer'
 import type { ComponentConfig } from '@/lib/component-config'
 import {
@@ -20,7 +20,6 @@ type ComponentCanvasProps = {
   propertyValues: Record<string, any>
   componentCode?: string
   componentConfig?: ComponentConfig | null
-  projectTheme?: any
 }
 
 export default function ComponentCanvas({
@@ -29,19 +28,7 @@ export default function ComponentCanvas({
   onSelectElement,
   propertyValues,
   componentCode,
-  projectTheme,
 }: ComponentCanvasProps) {
-  // Apply project theme CSS variables
-  useEffect(() => {
-    if (projectTheme?.colors) {
-      const root = document.documentElement
-      Object.entries(projectTheme.colors).forEach(([key, value]) => {
-        // Convert camelCase to kebab-case for CSS variables
-        const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase()
-        root.style.setProperty(`--${cssKey}`, value as string)
-      })
-    }
-  }, [projectTheme])
   const [viewMode, setViewMode] = useState<'preview' | 'code'>('preview')
   const [deviceMode, setDeviceMode] = useState<'desktop' | 'tablet' | 'mobile'>(
     'desktop'

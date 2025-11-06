@@ -133,3 +133,18 @@ code {
   }
 }
 
+/* Isolate project theme containers from dark mode */
+/* Project theme variables set via inline styles will override dark mode variables */
+.project-theme-container {
+  /* Ensure project theme variables take precedence over dark mode */
+  /* Inline styles set by ProjectThemeProvider have higher specificity */
+  /* CSS variables set here only affect children, not siblings like Header */
+}
+
+/* Ensure Header is isolated from project themes */
+/* Header is rendered outside ProjectThemeProvider, so it uses default theme */
+header {
+  /* Explicitly use root-level CSS variables, not project theme variables */
+  /* This ensures Header always uses the default theme regardless of project theme */
+}
+

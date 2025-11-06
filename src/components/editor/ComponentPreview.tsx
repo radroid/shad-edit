@@ -1,11 +1,17 @@
 import { ComponentElement, ComponentStructure } from '@/lib/property-extractor'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent } from '@/components/ui/card'
 import { Monitor, Smartphone, Tablet, Code, Eye } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { renderComponentPreview, ComponentType, getAllComponentTypes } from '@/lib/component-renderer'
 import type { ComponentConfig } from '@/lib/component-config'
-import { codeToHtml } from 'shiki'
+import {
+  CodeBlock,
+  CodeBlockBody,
+  CodeBlockContent,
+  CodeBlockCopyButton,
+  CodeBlockItem,
+} from '@/components/kibo-ui/code-block'
 
 type ComponentCanvasProps = {
   componentStructure?: ComponentStructure
@@ -14,6 +20,7 @@ type ComponentCanvasProps = {
   propertyValues: Record<string, any>
   componentCode?: string
   componentConfig?: ComponentConfig | null
+  projectTheme?: any
 }
 
 export default function ComponentCanvas({
@@ -22,26 +29,23 @@ export default function ComponentCanvas({
   onSelectElement,
   propertyValues,
   componentCode,
+  projectTheme,
 }: ComponentCanvasProps) {
+  // Apply project theme CSS variables
+  useEffect(() => {
+    if (projectTheme?.colors) {
+      const root = document.documentElement
+      Object.entries(projectTheme.colors).forEach(([key, value]) => {
+        // Convert camelCase to kebab-case for CSS variables
+        const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase()
+        root.style.setProperty(`--${cssKey}`, value as string)
+      })
+    }
+  }, [projectTheme])
   const [viewMode, setViewMode] = useState<'preview' | 'code'>('preview')
   const [deviceMode, setDeviceMode] = useState<'desktop' | 'tablet' | 'mobile'>(
     'desktop'
   )
-  const [highlightedCode, setHighlightedCode] = useState<string>('')
-
-  // Highlight code whenever componentCode changes
-  useEffect(() => {
-    if (componentCode) {
-      codeToHtml(componentCode, {
-        lang: 'tsx',
-        theme: 'github-dark',
-      })
-        .then((html) => setHighlightedCode(html))
-        .catch(() => setHighlightedCode(''))
-    } else {
-      setHighlightedCode('')
-    }
-  }, [componentCode])
 
   const deviceSizes = {
     desktop: 'w-full',
@@ -68,7 +72,6 @@ export default function ComponentCanvas({
   }
 
   const renderElement = (element: ComponentElement) => {
-    const isSelected = element.id === selectedElementId
     const elementStyles: React.CSSProperties = {}
 
     // Collect all property values for this element
@@ -100,22 +103,113 @@ export default function ComponentCanvas({
       }
     })
 
-    // Add border styling
-    if (elementStyles.borderWidth && elementStyles.borderWidth !== '0') {
-      elementStyles.borderStyle = 'solid'
+    // Apply enhanced CSS properties for advanced overrides
+    // These should be applied directly to the component, not the wrapper
+    const componentStyles: React.CSSProperties = {}
+    const wrapperStyles: React.CSSProperties = {}
+    
+    // Helper function to normalize CSS values (add 'px' if it's just a number)
+    const normalizeValue = (value: any, needsUnit: boolean = false): string | undefined => {
+      if (value === undefined || value === null || value === '') return undefined
+      const strValue = String(value).trim()
+      if (!strValue) return undefined
+      
+      // If it needs a unit and is just a number, add 'px'
+      // Also handle decimal numbers
+      if (needsUnit && /^\d+(\.\d+)?$/.test(strValue)) {
+        return `${strValue}px`
+      }
+      
+      return strValue
+    }
+    
+    const enhancedProps = ['backgroundColor', 'color', 'padding', 'margin', 'fontSize', 'fontWeight', 'borderWidth', 'borderColor', 'borderRadius']
+    enhancedProps.forEach((propName) => {
+      const key = `${element.id}.${propName}`
+      const value = propertyValues[key]
+      if (value !== undefined && value !== null && value !== '') {
+        const cssProp = propName as keyof React.CSSProperties
+        
+        // For component-level properties (background, text color, padding, etc.), apply to component
+        // For wrapper properties (margin), apply to wrapper
+        if (propName === 'margin' || propName === 'marginTop' || propName === 'marginBottom' || 
+            propName === 'marginLeft' || propName === 'marginRight') {
+          const normalizedValue = normalizeValue(value, true)
+          if (normalizedValue) {
+            // Type assertion needed for margin properties
+            wrapperStyles[cssProp as 'margin' | 'marginTop' | 'marginBottom' | 'marginLeft' | 'marginRight'] = normalizedValue as any
+          }
+        } else if (propName === 'marginX' || propName === 'marginY') {
+          // Handle marginX and marginY as marginLeft/Right or marginTop/Bottom
+          const normalizedValue = normalizeValue(value, true)
+          if (normalizedValue) {
+            if (propName === 'marginX') {
+              wrapperStyles.marginLeft = normalizedValue as any
+              wrapperStyles.marginRight = normalizedValue as any
+            } else {
+              wrapperStyles.marginTop = normalizedValue as any
+              wrapperStyles.marginBottom = normalizedValue as any
+            }
+          }
+        } else {
+          // Apply directly to component - these override variant classes via inline styles
+          if (cssProp === 'fontWeight') {
+            componentStyles[cssProp] = value as React.CSSProperties['fontWeight']
+          } else if (cssProp === 'backgroundColor' || cssProp === 'color') {
+            // For colors, ensure we're using the value directly (hex, hsl, rgb, etc.)
+            componentStyles[cssProp] = value as any
+          } else if (cssProp === 'padding' || cssProp === 'fontSize') {
+            // Padding and fontSize need units if they're just numbers
+            const normalizedValue = normalizeValue(value, true)
+            if (normalizedValue) {
+              componentStyles[cssProp] = normalizedValue
+            }
+          } else if (cssProp === 'borderWidth') {
+            // Border width needs units if it's just a number
+            const normalizedValue = normalizeValue(value, true)
+            if (normalizedValue) {
+              componentStyles[cssProp] = normalizedValue
+            }
+          } else if (cssProp === 'borderColor') {
+            // Border color is a color value
+            componentStyles[cssProp] = value as any
+          } else if (cssProp === 'borderRadius') {
+            // Border radius needs units if it's just a number
+            const normalizedValue = normalizeValue(value, true)
+            if (normalizedValue) {
+              componentStyles[cssProp] = normalizedValue
+            }
+          } else {
+            componentStyles[cssProp] = value as any
+          }
+        }
+      }
+    })
+
+    // Add border styling - ensure border is visible when borderWidth is set
+    if (componentStyles.borderWidth && componentStyles.borderWidth !== '0' && componentStyles.borderWidth !== '0px') {
+      componentStyles.borderStyle = 'solid'
+      // If borderColor is not set but borderWidth is, set a default border color
+      if (!componentStyles.borderColor) {
+        componentStyles.borderColor = 'currentColor'
+      }
     }
 
     // Try to render using component renderer only for supported types
     let componentContent
     const supportedTypes = getAllComponentTypes()
     if (supportedTypes.includes(element.type as ComponentType)) {
+      // Merge component styles into elementProps so they're applied directly to the component
       componentContent = renderComponentPreview({
         type: element.type as ComponentType,
-        props: elementProps,
+        props: {
+          ...elementProps,
+          style: componentStyles, // Pass styles directly to component to override variant classes
+        },
       })
     } else {
       // Fallback to basic HTML elements
-      componentContent = renderBasicElement(element, elementProps)
+      componentContent = renderBasicElement(element, { ...elementProps, style: componentStyles })
     }
 
     return (
@@ -125,8 +219,8 @@ export default function ComponentCanvas({
           e.stopPropagation()
           onSelectElement(element.id)
         }}
-        className="relative inline-block"
-        style={elementStyles}
+        className="relative inline-block border-2 border-dashed border-gray-100 dark:border-gray-200"
+        style={wrapperStyles}
       >
         {componentContent}
       </div>
@@ -135,31 +229,33 @@ export default function ComponentCanvas({
 
   const renderBasicElement = (element: ComponentElement, props: Record<string, any>) => {
     // Fallback rendering for basic HTML elements
+    const style = props.style || {}
     switch (element.type) {
       case 'div':
-        return <div>{element.children?.map(renderElement)}</div>
+        return <div style={style}>{element.children?.map(renderElement)}</div>
       case 'h1':
-        return <h1 className="text-2xl font-semibold">{props.text || 'Heading 1'}</h1>
+        return <h1 className="text-2xl font-semibold" style={style}>{props.text || 'Heading 1'}</h1>
       case 'h2':
-        return <h2 className="text-xl font-semibold">{props.text || 'Heading 2'}</h2>
+        return <h2 className="text-xl font-semibold" style={style}>{props.text || 'Heading 2'}</h2>
       case 'h3':
-        return <h3 className="text-lg font-semibold">{props.text || 'Heading 3'}</h3>
+        return <h3 className="text-lg font-semibold" style={style}>{props.text || 'Heading 3'}</h3>
       case 'p':
-        return <p className="text-sm text-muted-foreground">{props.text}</p>
+        return <p className="text-sm text-muted-foreground" style={style}>{props.text}</p>
       case 'span':
-        return <span>{props.text}</span>
+        return <span style={style}>{props.text}</span>
       case 'a':
-        return <a href={props.href || '#'}>{props.text || 'Link'}</a>
+        return <a href={props.href || '#'} style={style}>{props.text || 'Link'}</a>
       case 'img':
         return (
           <img
             src={props.src || 'https://via.placeholder.com/150'}
             alt={props.alt || ''}
             className="max-w-full"
+            style={style}
           />
         )
       default:
-        return <div className="text-muted-foreground text-sm">Unknown element: {element.type}</div>
+        return <div className="text-muted-foreground text-sm" style={style}>Unknown element: {element.type}</div>
     }
   }
 
@@ -244,17 +340,48 @@ export default function ComponentCanvas({
             </Card>
           </div>
         ) : (
-          <Card>
+          <Card className="overflow-hidden !p-0 !py-0">
             <CardContent className="p-0">
-              {highlightedCode ? (
-                <div 
-                  className="overflow-auto max-h-full [&_pre]:m-0 [&_pre]:p-4 [&_pre]:bg-transparent"
-                  dangerouslySetInnerHTML={{ __html: highlightedCode }}
-                />
+              {componentCode ? (
+                <CodeBlock
+                  data={[
+                    {
+                      language: 'tsx',
+                      filename: 'component.tsx',
+                      code: componentCode,
+                    },
+                  ]}
+                  defaultValue="tsx"
+                  className="border-0 rounded-none w-full m-0"
+                >
+                  <div className="flex items-center justify-end border-b bg-secondary/50 p-2 m-0">
+                    <CodeBlockCopyButton />
+                  </div>
+                  <CodeBlockBody>
+                    {(item) => (
+                      <CodeBlockItem
+                        key={item.language}
+                        value={item.language}
+                        lineNumbers
+                        className="overflow-y-auto overflow-x-hidden max-h-[calc(100vh-300px)] [&_.shiki]:bg-card [&_code]:whitespace-pre-wrap! [&_code]:break-words! [&_code]:overflow-x-hidden! [&_code]:block! [&_code]:grid-none! [&_.line]:whitespace-pre-wrap! [&_.line]:break-words! [&_pre]:m-0! [&_pre]:py-0! [&_pre]:px-0!"
+                      >
+                        <CodeBlockContent 
+                          language="tsx"
+                          themes={{
+                            light: "github-light",
+                            dark: "github-dark-default",
+                          }}
+                        >
+                          {item.code}
+                        </CodeBlockContent>
+                      </CodeBlockItem>
+                    )}
+                  </CodeBlockBody>
+                </CodeBlock>
               ) : (
-                <pre className="text-sm overflow-auto p-4">
-                  <code>{componentCode || '// No code available'}</code>
-                </pre>
+                <div className="p-4 text-sm text-muted-foreground">
+                  // No code available
+                </div>
               )}
             </CardContent>
           </Card>

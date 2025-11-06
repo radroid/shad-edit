@@ -6,6 +6,27 @@
 import type { PropertyDefinition } from './property-extractor'
 
 /**
+ * Tailwind property definition for editable properties
+ */
+export type TailwindProperty = {
+  name: string
+  type: 'color' | 'spacing' | 'size' | 'radius' | 'custom'
+  tailwindPrefix: string // e.g., 'text-', 'bg-', 'p-'
+  cssProperty: string // e.g., 'color', 'backgroundColor', 'padding'
+  defaultValue: string
+  variants?: string[] // Tailwind values: ['sm', 'md', 'lg']
+}
+
+/**
+ * Component variant configuration
+ */
+export type ComponentVariant = {
+  name: string // 'default', 'outline', 'ghost'
+  displayName: string
+  properties: Record<string, any> // Property overrides for this variant
+}
+
+/**
  * Component metadata for marketplace display
  */
 export type ComponentMetadata = {
@@ -123,7 +144,7 @@ export function applyPropertiesToCode(
 ): string {
   let result = code
   
-  if (!mappings) {
+  if (!mappings || !Array.isArray(mappings)) {
     // Fallback: simple template replacement
     Object.entries(properties).forEach(([key, value]) => {
       const placeholder = `{{${key}}}`

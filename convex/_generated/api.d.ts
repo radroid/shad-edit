@@ -8,8 +8,11 @@
  * @module
  */
 
+import type * as catalogComponents from "../catalogComponents.js";
 import type * as componentConfigs from "../componentConfigs.js";
 import type * as components_ from "../components.js";
+import type * as projectComponents from "../projectComponents.js";
+import type * as projects from "../projects.js";
 import type * as seedComponentConfigs from "../seedComponentConfigs.js";
 import type * as users from "../users.js";
 
@@ -28,8 +31,11 @@ import type {
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  catalogComponents: typeof catalogComponents;
   componentConfigs: typeof componentConfigs;
   components: typeof components_;
+  projectComponents: typeof projectComponents;
+  projects: typeof projects;
   seedComponentConfigs: typeof seedComponentConfigs;
   users: typeof users;
 }>;

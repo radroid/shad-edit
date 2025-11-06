@@ -50,6 +50,7 @@ export function renderComponentPreview({ type, props = {} }: ComponentPreviewPro
           variant={(props.variant as any) || 'default'}
           size={(props.size as any) || 'default'}
           className={props.className}
+          style={props.style}
         >
           {props.text || props.children || 'Click me'}
         </Button>
@@ -67,7 +68,7 @@ export function renderComponentPreview({ type, props = {} }: ComponentPreviewPro
 
     case 'card':
       return (
-        <Card className={`w-full max-w-md ${props.className || ''}`}>
+        <Card className={`w-full max-w-md ${props.className || ''}`} style={props.style}>
           <CardHeader>
             <CardTitle>{props.title || 'Card Title'}</CardTitle>
             {(props.description !== false && props.description !== '') && (
@@ -166,14 +167,14 @@ export function renderComponentPreview({ type, props = {} }: ComponentPreviewPro
 
     case 'badge':
       return (
-        <Badge variant={props.variant || 'default'} {...props}>
+        <Badge variant={props.variant || 'default'} style={props.style} {...props}>
           {props.text || props.children || 'Badge'}
         </Badge>
       )
 
     case 'label':
       return (
-        <Label {...props}>
+        <Label style={props.style} {...props}>
           {props.text || props.children || 'Label'}
         </Label>
       )

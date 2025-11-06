@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import ComponentCanvas from '@/components/editor/ComponentPreview'
 import PropertyManager from '@/components/editor/PropertyManager'
+import ProjectThemeProvider from '@/components/projects/ProjectThemeProvider'
 import { Button } from '@/components/ui/button'
 import { Pencil, ArrowLeft } from 'lucide-react'
 import { useMutation, useQuery } from 'convex/react'
@@ -54,18 +55,6 @@ function ComponentEditorPage() {
 
   const updateComponentVariant = useMutation(api.projectComponents.updateComponentVariant)
   const updateComponentName = useMutation(api.projectComponents.updateComponentName)
-
-  // Apply project theme CSS variables globally
-  useEffect(() => {
-    if (project?.globalTheme?.colors) {
-      const root = document.documentElement
-      Object.entries(project.globalTheme.colors).forEach(([key, value]) => {
-        // Map camelCase to CSS variable names used by Tailwind
-        const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase()
-        root.style.setProperty(`--${cssKey}`, value as string)
-      })
-    }
-  }, [project?.globalTheme])
 
   // Initialize name
   useEffect(() => {
@@ -360,77 +349,78 @@ function ComponentEditorPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen">
-      {/* Top toolbar */}
-      <div className="border-b bg-background">
-        <div className="flex items-center justify-between p-3 gap-4">
-          <div className="flex items-center gap-2">
-            <Link to="/projects/$projectId" params={{ projectId }}>
-              <Button size="sm" variant="ghost">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back
-              </Button>
-            </Link>
-            {isEditingName ? (
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                onBlur={handleNameBlur}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.currentTarget.blur()
-                  }
-                }}
-                autoFocus
-                className="font-medium max-w-md"
-              />
-            ) : (
-              <div className="flex items-center gap-2">
-                <span className="font-medium">{name}</span>
-                <Button
-                  size="icon-sm"
-                  variant="ghost"
-                  onClick={() => setIsEditingName(true)}
-                >
-                  <Pencil className="h-4 w-4" />
+    <ProjectThemeProvider theme={project?.globalTheme}>
+      <div className="flex h-screen flex-col bg-background text-foreground">
+        {/* Top toolbar */}
+        <div className="border-b border-border bg-card/80 backdrop-blur">
+          <div className="flex items-center justify-between gap-4 px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Link to="/projects/$projectId" params={{ projectId }}>
+                <Button size="sm" variant="ghost" className="text-card-foreground">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back
                 </Button>
-              </div>
-            )}
+              </Link>
+              {isEditingName ? (
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  onBlur={handleNameBlur}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.currentTarget.blur()
+                    }
+                  }}
+                  autoFocus
+                  className="max-w-md font-medium"
+                />
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-card-foreground">{name}</span>
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    onClick={() => setIsEditingName(true)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Main editor layout */}
+        <div className="flex flex-1 overflow-hidden bg-muted/30">
+          {/* Center canvas */}
+          <div className="flex-1 overflow-hidden border-r border-border bg-card text-card-foreground">
+            <ComponentCanvas
+              componentStructure={componentStructure}
+              selectedElementId={selectedElementId}
+              onSelectElement={setSelectedElementId}
+              propertyValues={propertyValues}
+              componentCode={componentCode}
+              componentConfig={catalogComponent as any}
+            />
+          </div>
+
+          {/* Right sidebar - Property manager */}
+          <div className="w-80 shrink-0 overflow-hidden border-l border-border bg-card text-card-foreground">
+            <PropertyManager
+              selectedElement={selectedElement}
+              propertyValues={propertyValues}
+              onPropertyChange={handlePropertyChange}
+              variants={catalogComponent.variants || []}
+              selectedVariant={selectedVariant}
+              onVariantChange={handleVariantChange}
+              sizeOptions={sizeOptions}
+              selectedSize={selectedSize}
+              onSizeChange={handleSizeChange}
+              onResetOverrides={handleResetOverrides}
+            />
           </div>
         </div>
       </div>
-
-      {/* Main editor layout */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Center canvas */}
-        <div className="flex-1 overflow-hidden">
-          <ComponentCanvas
-            componentStructure={componentStructure}
-            selectedElementId={selectedElementId}
-            onSelectElement={setSelectedElementId}
-            propertyValues={propertyValues}
-            componentCode={componentCode}
-            componentConfig={catalogComponent as any}
-            projectTheme={project?.globalTheme}
-          />
-        </div>
-
-        {/* Right sidebar - Property manager */}
-        <div className="w-80 shrink-0 overflow-hidden">
-          <PropertyManager
-            selectedElement={selectedElement}
-            propertyValues={propertyValues}
-            onPropertyChange={handlePropertyChange}
-            variants={catalogComponent.variants || []}
-            selectedVariant={selectedVariant}
-            onVariantChange={handleVariantChange}
-            sizeOptions={sizeOptions}
-            selectedSize={selectedSize}
-            onSizeChange={handleSizeChange}
-            onResetOverrides={handleResetOverrides}
-          />
-        </div>
-      </div>
-    </div>
+    </ProjectThemeProvider>
   )
 }

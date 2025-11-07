@@ -4,9 +4,10 @@ import { v } from 'convex/values'
 export const listPublicComponents = query({
   args: {},
   handler: async (ctx) => {
-    return await ctx.db
+    const db = ctx.db as any
+    return await db
       .query('components')
-      .withIndex('by_public', (q) => q.eq('isPublic', true))
+      .withIndex('by_public', (q: any) => q.eq('isPublic', true))
       .collect()
   },
 })
@@ -23,6 +24,7 @@ export const saveComponent = mutation({
     componentId: v.optional(v.id('components')), // For updates
   },
   handler: async (ctx, args) => {
+    const db = ctx.db as any
     const identity = await ctx.auth.getUserIdentity()
     if (!identity) throw new Error('Not authenticated')
     const user = await ctx.db
@@ -36,11 +38,11 @@ export const saveComponent = mutation({
     
     // If componentId is provided, update existing component
     if (args.componentId) {
-      const existing = await ctx.db.get(args.componentId)
+      const existing = await db.get(args.componentId)
       if (!existing) throw new Error('Component not found')
       if (existing.authorId !== user._id) throw new Error('Forbidden')
       
-      await ctx.db.patch(args.componentId, {
+      await db.patch(args.componentId, {
         name: args.name,
         description: args.description,
         category: args.category,
@@ -53,7 +55,7 @@ export const saveComponent = mutation({
     }
     
     // Create new component (draft)
-    const id = await ctx.db.insert('components', {
+    const id = await db.insert('components', {
       name: args.name,
       description: args.description,
       category: args.category,
@@ -73,6 +75,7 @@ export const saveComponent = mutation({
 export const publishComponent = mutation({
   args: { componentId: v.id('components') },
   handler: async (ctx, { componentId }) => {
+    const db = ctx.db as any
     const identity = await ctx.auth.getUserIdentity()
     if (!identity) throw new Error('Not authenticated')
     const user = await ctx.db
@@ -80,7 +83,7 @@ export const publishComponent = mutation({
       .withIndex('by_external', (q) => q.eq('externalId', identity.subject))
       .unique()
     if (!user) throw new Error('User not found')
-    const component = await ctx.db.get(componentId)
+    const component = await db.get(componentId)
     if (!component) throw new Error('Component not found')
     if (component.authorId !== user._id) throw new Error('Forbidden')
     
@@ -95,13 +98,17 @@ export const publishComponent = mutation({
     const config = registryData.config
     
     // Extract componentId from component name or use a generated one
+    const safeName =
+      typeof component.name === 'string' && component.name.trim().length > 0
+        ? component.name.trim()
+        : 'component'
     const catalogComponentId = component.sourceComponent || 
-      component.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+      safeName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
     
     // Check if config already exists in catalog
-    const existingConfig = await ctx.db
+    const existingConfig = await db
       .query('componentConfigs')
-      .withIndex('by_componentId', (q) => q.eq('componentId', catalogComponentId))
+      .withIndex('by_componentId', (q: any) => q.eq('componentId', catalogComponentId))
       .first()
     
     if (existingConfig) {
@@ -110,7 +117,7 @@ export const publishComponent = mutation({
         throw new Error('Component with this ID already exists in catalog')
       }
       
-      await ctx.db.patch(existingConfig._id, {
+      await db.patch(existingConfig._id, {
         name: config.metadata?.name || component.name,
         description: config.metadata?.description || component.description,
         category: config.metadata?.category || component.category,
@@ -126,7 +133,7 @@ export const publishComponent = mutation({
       })
     } else {
       // Create new config in catalog
-      await ctx.db.insert('componentConfigs', {
+      await db.insert('componentConfigs', {
         componentId: catalogComponentId,
         name: config.metadata?.name || component.name,
         description: config.metadata?.description || component.description,
@@ -146,7 +153,7 @@ export const publishComponent = mutation({
     }
     
     // Mark component as published
-    await ctx.db.patch(componentId, { 
+    await db.patch(componentId, { 
       isPublic: true, 
       updatedAt: now,
       publishedCode: config.code || component.registryData?.code,
@@ -159,6 +166,7 @@ export const publishComponent = mutation({
 export const listMyComponents = query({
   args: {},
   handler: async (ctx) => {
+    const db = ctx.db as any
     const identity = await ctx.auth.getUserIdentity()
     if (!identity) throw new Error('Not authenticated')
     let user = await ctx.db
@@ -169,9 +177,9 @@ export const listMyComponents = query({
       // In a query we cannot write. If user is missing, return empty list.
       return []
     }
-    return ctx.db
+    return db
       .query('components')
-      .withIndex('by_author', (q) => q.eq('authorId', user._id))
+      .withIndex('by_author', (q: any) => q.eq('authorId', user._id))
       .collect()
   },
 })
@@ -180,9 +188,10 @@ export const listMyComponents = query({
 export const listVariantsForComponent = query({
   args: { componentId: v.id('components') },
   handler: async (ctx, { componentId }) => {
-    return await ctx.db
+    const db = ctx.db as any
+    return await db
       .query('variants')
-      .withIndex('by_component', (q) => q.eq('componentId', componentId))
+      .withIndex('by_component', (q: any) => q.eq('componentId', componentId))
       .collect()
   },
 })
@@ -190,14 +199,15 @@ export const listVariantsForComponent = query({
 export const getVariantWithLatestVersion = query({
   args: { variantId: v.id('variants') },
   handler: async (ctx, { variantId }) => {
-    const variant = await ctx.db.get(variantId)
+    const db = ctx.db as any
+    const variant = await db.get(variantId)
     if (!variant) return null
     let latest = null as any
     if (typeof variant.latestVersion === 'number') {
-      latest = await ctx.db
+      latest = await db
         .query('variantVersions')
-        .withIndex('by_variant_version', (q) => q.eq('variantId', variantId))
-        .filter((q) => q.eq(q.field('version'), variant.latestVersion))
+        .withIndex('by_variant_version', (q: any) => q.eq('variantId', variantId))
+        .filter((q: any) => q.eq(q.field('version'), variant.latestVersion))
         .first()
     }
     return { variant, latest }
@@ -212,6 +222,7 @@ export const createVariant = mutation({
     initialSchema: v.optional(v.any()),
   },
   handler: async (ctx, { componentId, name, initialCode, initialSchema }) => {
+    const db = ctx.db as any
     const identity = await ctx.auth.getUserIdentity()
     if (!identity) throw new Error('Not authenticated')
     const user = await ctx.db
@@ -220,7 +231,7 @@ export const createVariant = mutation({
       .unique()
     if (!user) throw new Error('User not found')
     const now = Date.now()
-    const variantId = await ctx.db.insert('variants', {
+    const variantId = await db.insert('variants', {
       componentId,
       name,
       latestVersion: 0,
@@ -230,7 +241,7 @@ export const createVariant = mutation({
     })
     // create version 1 if provided
     if (initialCode || initialSchema) {
-      await ctx.db.insert('variantVersions', {
+      await db.insert('variantVersions', {
         variantId,
         version: 1,
         code: initialCode,
@@ -239,7 +250,7 @@ export const createVariant = mutation({
         createdBy: user._id,
         createdAt: now,
       })
-      await ctx.db.patch(variantId, { latestVersion: 1, updatedAt: now })
+      await db.patch(variantId, { latestVersion: 1, updatedAt: now })
     }
     return variantId
   },
@@ -249,6 +260,7 @@ export const createVariant = mutation({
 export const forkComponent = mutation({
   args: { componentId: v.id('components') },
   handler: async (ctx, { componentId }) => {
+    const db = ctx.db as any
     const identity = await ctx.auth.getUserIdentity()
     if (!identity) throw new Error('Not authenticated')
     const user = await ctx.db
@@ -257,12 +269,12 @@ export const forkComponent = mutation({
       .unique()
     if (!user) throw new Error('User not found')
 
-    const base = await ctx.db.get(componentId)
+    const base = await db.get(componentId)
     if (!base || !base.isPublic) throw new Error('Base component not public')
 
     const now = Date.now()
     const ownerTag = identity.email ? identity.email.slice(0, 6) : undefined
-    const newId = await ctx.db.insert('components', {
+    const newId = await db.insert('components', {
       name: `${base.name}${ownerTag ? ` @${ownerTag}` : ''}`,
       description: base.description,
       category: base.category,
@@ -287,6 +299,7 @@ export const createVariantVersion = mutation({
     changeset: v.optional(v.any()),
   },
   handler: async (ctx, { variantId, code, schema, changeset }) => {
+    const db = ctx.db as any
     const identity = await ctx.auth.getUserIdentity()
     if (!identity) throw new Error('Not authenticated')
     const user = await ctx.db
@@ -294,11 +307,11 @@ export const createVariantVersion = mutation({
       .withIndex('by_external', (q) => q.eq('externalId', identity.subject))
       .unique()
     if (!user) throw new Error('User not found')
-    const variant = await ctx.db.get(variantId)
+    const variant = await db.get(variantId)
     if (!variant) throw new Error('Variant not found')
     const now = Date.now()
     const nextVersion = (variant.latestVersion ?? 0) + 1
-    await ctx.db.insert('variantVersions', {
+    await db.insert('variantVersions', {
       variantId,
       version: nextVersion,
       code,
@@ -307,7 +320,7 @@ export const createVariantVersion = mutation({
       createdBy: user._id,
       createdAt: now,
     })
-    await ctx.db.patch(variantId, { latestVersion: nextVersion, updatedAt: now })
+    await db.patch(variantId, { latestVersion: nextVersion, updatedAt: now })
     return nextVersion
   },
 })
@@ -315,9 +328,10 @@ export const createVariantVersion = mutation({
 export const listVariantVersions = query({
   args: { variantId: v.id('variants') },
   handler: async (ctx, { variantId }) => {
-    return await ctx.db
+    const db = ctx.db as any
+    return await db
       .query('variantVersions')
-      .withIndex('by_variant', (q) => q.eq('variantId', variantId))
+      .withIndex('by_variant', (q: any) => q.eq('variantId', variantId))
       .collect()
   },
 })

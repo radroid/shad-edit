@@ -230,7 +230,7 @@ export default function ComponentOverlay({
                           key={item.language}
                           value={item.language}
                           lineNumbers
-                          className="overflow-y-auto overflow-x-hidden max-h-[600px] [&_.shiki]:bg-card [&_code]:whitespace-pre-wrap! [&_code]:break-words! [&_code]:overflow-x-hidden! [&_code]:block! [&_code]:grid-none! [&_.line]:whitespace-pre-wrap! [&_.line]:break-words! [&_pre]:m-0! [&_pre]:py-0! [&_pre]:px-0!"
+                        className="overflow-y-auto overflow-x-hidden max-h-[600px] [&_.shiki]:bg-card [&_code]:whitespace-pre-wrap! [&_code]:wrap-break-word! [&_code]:overflow-x-hidden! [&_code]:block! [&_code]:grid-none! [&_.line]:whitespace-pre-wrap! [&_.line]:wrap-break-word! [&_pre]:m-0! [&_pre]:py-0! [&_pre]:px-0!"
                         >
                           <CodeBlockContent 
                             language="tsx"

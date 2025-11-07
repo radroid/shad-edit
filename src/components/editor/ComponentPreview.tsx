@@ -60,6 +60,7 @@ export default function ComponentCanvas({
 
   const renderElement = (element: ComponentElement) => {
     const elementStyles: React.CSSProperties = {}
+    const isSelected = selectedElementId === element.id
 
     // Collect all property values for this element
     const elementProps: Record<string, any> = {}
@@ -206,7 +207,11 @@ export default function ComponentCanvas({
           e.stopPropagation()
           onSelectElement(element.id)
         }}
-        className="relative inline-block border-2 border-dashed border-gray-100 dark:border-gray-200"
+        className={`relative inline-block border-2 ${
+          isSelected
+            ? 'border-primary border-solid shadow-sm'
+            : 'border-dashed border-gray-100 dark:border-gray-200'
+        }`}
         style={wrapperStyles}
       >
         {componentContent}
@@ -327,7 +332,7 @@ export default function ComponentCanvas({
             </Card>
           </div>
         ) : (
-          <Card className="overflow-hidden !p-0 !py-0">
+          <Card className="overflow-hidden p-0! py-0!">
             <CardContent className="p-0">
               {componentCode ? (
                 <CodeBlock
@@ -350,7 +355,7 @@ export default function ComponentCanvas({
                         key={item.language}
                         value={item.language}
                         lineNumbers
-                        className="overflow-y-auto overflow-x-hidden max-h-[calc(100vh-300px)] [&_.shiki]:bg-card [&_code]:whitespace-pre-wrap! [&_code]:break-words! [&_code]:overflow-x-hidden! [&_code]:block! [&_code]:grid-none! [&_.line]:whitespace-pre-wrap! [&_.line]:break-words! [&_pre]:m-0! [&_pre]:py-0! [&_pre]:px-0!"
+                    className="overflow-y-auto overflow-x-hidden max-h-[calc(100vh-300px)] [&_.shiki]:bg-card [&_code]:whitespace-pre-wrap! [&_code]:wrap-break-word! [&_code]:overflow-x-hidden! [&_code]:block! [&_code]:grid-none! [&_.line]:whitespace-pre-wrap! [&_.line]:wrap-break-word! [&_pre]:m-0! [&_pre]:py-0! [&_pre]:px-0!"
                       >
                         <CodeBlockContent 
                           language="tsx"

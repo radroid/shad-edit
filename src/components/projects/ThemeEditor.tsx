@@ -88,13 +88,6 @@ export default function ThemeEditor({ theme, onThemeChange }: ThemeEditorProps) 
     return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
   }
 
-  const hexToHsl = (hex: string): string => {
-    // Simplified - for production use proper converter
-    // For now, return hex if it's already HSL format
-    if (hex.startsWith('hsl')) return hex
-    return hex
-  }
-
   return (
     <div className="space-y-6">
       <Tabs defaultValue="presets" className="w-full">

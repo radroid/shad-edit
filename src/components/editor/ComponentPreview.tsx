@@ -332,7 +332,7 @@ export default function ComponentCanvas({
             </Card>
           </div>
         ) : (
-          <Card className="overflow-hidden p-0! py-0!">
+          <Card className="overflow-hidden p-0">
             <CardContent className="p-0">
               {componentCode ? (
                 <CodeBlock

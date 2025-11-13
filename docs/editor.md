@@ -53,3 +53,4 @@ Property updates debounce through `projectComponents.updateComponentVariant`, en
 - Switch theme tokens in `ThemeEditor` and ensure the canvas + exported code update.
 - Publish component and confirm it appears under `/marketplace` with themed preview.
 
+

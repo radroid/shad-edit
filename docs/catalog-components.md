@@ -77,3 +77,4 @@ Published components return to the marketplace as reusable templates. The origin
 - **Preview missing properties** – ensure `tailwindProperties` names match the code placeholders. The editor maps property keys to `${elementId}.${propertyName}` format.
 - **Publish conflicts** – publishing enforces ownership; only the original author of an existing catalog entry can overwrite it. Generate a new `componentId` if ownership has changed.
 
+

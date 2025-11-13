@@ -57,3 +57,4 @@
 - Guard mutations with auth checks (`ctx.auth.getUserIdentity()`) and ownership validation before writes.
 - Store documentation and runbooks in `docs/` (this file) to keep the repository self-describing.
 
+

@@ -37,3 +37,4 @@ The preview system keeps marketplace cards, overlays, and the project editor in 
 - Open a card overlay; ensure the preview respects theme tokens and property defaults.
 - Load the associated project editor page; property changes should immediately re-render the component.
 
+

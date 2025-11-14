@@ -10,6 +10,16 @@ function OverlayPage() {
   const { componentId } = useParams({ strict: false }) as { componentId: string }
   const [open, setOpen] = useState(true)
   const navigate = useNavigate()
+  
+  const handleEdit = () => {
+    // Navigate directly without closing the dialog
+    // The navigation will unmount this component cleanly
+    navigate({
+      to: '/marketplace/$componentId/edit',
+      params: { componentId },
+    })
+  }
+  
   return (
     <ComponentOverlay
       open={open}
@@ -18,6 +28,7 @@ function OverlayPage() {
         if (!v) navigate({ to: '/marketplace' })
       }}
       componentId={componentId}
+      onEdit={handleEdit}
     />
   )
 }

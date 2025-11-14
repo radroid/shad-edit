@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/navigation-menu'
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
+import { cn } from './utils'
 
 export type ComponentType = 
   | 'button'
@@ -43,144 +44,158 @@ export interface ComponentPreviewProps {
  * Render a component preview based on type
  */
 export function renderComponentPreview({ type, props = {} }: ComponentPreviewProps) {
-  switch (type) {
-    case 'button':
-      return (
-        <Button
-          variant={(props.variant as any) || 'default'}
-          size={(props.size as any) || 'default'}
-          className={props.className}
-          style={props.style}
-        >
-          {props.text || props.children || 'Click me'}
-        </Button>
-      )
+  try {
+    switch (type) {
+      case 'button':
+        return (
+          <Button
+            variant={(props.variant as any) ?? 'default'}
+            size={(props.size as any) ?? 'default'}
+            className={cn(props.className)}
+            style={props.style}
+          >
+            {props.text ?? props.children ?? 'Click me'}
+          </Button>
+        )
 
-    case 'input':
-      return (
-        <Input
-          type={props.type || 'text'}
-          placeholder={props.placeholder || 'Enter text...'}
-          className={`w-full max-w-sm ${props.className || ''}`}
-          defaultValue={props.defaultValue}
-        />
-      )
+      case 'input':
+        return (
+          <Input
+            type={props.type ?? 'text'}
+            placeholder={props.placeholder ?? 'Enter text...'}
+            className={cn('w-full max-w-sm', props.className)}
+            defaultValue={props.defaultValue}
+          />
+        )
 
-    case 'card':
-      return (
-        <Card className={`w-full max-w-md ${props.className || ''}`} style={props.style}>
-          <CardHeader>
-            <CardTitle>{props.title || 'Card Title'}</CardTitle>
-            {(props.description !== false && props.description !== '') && (
-              <CardDescription>
-                {props.description || 'Card description goes here'}
-              </CardDescription>
+      case 'card':
+        return (
+          <Card className={cn('w-full max-w-md', props.className)} style={props.style}>
+            <CardHeader>
+              <CardTitle>{props.title ?? 'Card Title'}</CardTitle>
+              {props.description !== false && props.description !== '' && (
+                <CardDescription>
+                  {props.description ?? 'Card description goes here'}
+                </CardDescription>
+              )}
+            </CardHeader>
+            <CardContent>
+              {props.content ?? (
+                <p className="text-sm">
+                  This is the card content area. You can customize this text and add more elements.
+                </p>
+              )}
+            </CardContent>
+            {props.showFooter !== false && (
+              <CardFooter>
+                <Button variant="outline" className="w-full">
+                  {props.footerAction ?? 'Action'}
+                </Button>
+              </CardFooter>
             )}
-          </CardHeader>
-          <CardContent>
-            {props.content || (
-              <p className="text-sm">
-                This is the card content area. You can customize this text and add more elements.
-              </p>
-            )}
-          </CardContent>
-          {props.showFooter !== false && (
-            <CardFooter>
-              <Button variant="outline" className="w-full">
-                {props.footerAction || 'Action'}
+          </Card>
+        )
+
+      case 'dialog':
+        return (
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="default">
+                {props.triggerText ?? 'Open Dialog'}
               </Button>
-            </CardFooter>
-          )}
-        </Card>
-      )
+            </DialogTrigger>
+            <DialogContent className={cn('sm:max-w-[425px]', props.contentClassName)}>
+              <DialogHeader>
+                <DialogTitle>{props.title ?? 'Dialog Title'}</DialogTitle>
+                {props.description !== false && props.description !== '' && (
+                  <DialogDescription>
+                    {props.description ??
+                      "Make changes to your profile here. Click save when you're done."}
+                  </DialogDescription>
+                )}
+              </DialogHeader>
+              <div className="py-4">
+                {props.content ?? (
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      This is the dialog content area. You can add forms, text, or other components here.
+                    </p>
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button type="submit">{props.actionText ?? 'Save changes'}</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )
 
-    case 'dialog':
-      return (
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button variant="outline" size="default">
-              {props.triggerText || 'Open Dialog'}
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>{props.title || 'Dialog Title'}</DialogTitle>
-              {(props.description !== false && props.description !== '') && (
-                <DialogDescription>
-                  {props.description || 'Make changes to your profile here. Click save when you\'re done.'}
-                </DialogDescription>
-              )}
-            </DialogHeader>
-            <div className="py-4">
-              {props.content || (
-                <div className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    This is the dialog content area. You can add forms, text, or other components here.
-                  </p>
-                </div>
-              )}
-            </div>
-            <DialogFooter>
-              <Button type="submit">{props.actionText || 'Save changes'}</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )
+      case 'navigation-menu':
+        return (
+          <NavigationMenu className={cn('mx-auto', props.className)}>
+            <NavigationMenuList>
+              <NavigationMenuItem>
+                <NavigationMenuTrigger>
+                  {props.item1 ?? 'Getting started'}
+                </NavigationMenuTrigger>
+                <NavigationMenuContent>
+                  <div className="grid gap-3 p-4 w-[400px] md:w-[500px]">
+                    <NavigationMenuLink className="block p-3 hover:bg-accent rounded-md cursor-pointer">
+                      <div className="font-medium mb-1">Introduction</div>
+                      <div className="text-sm text-muted-foreground">
+                        Learn about the component library
+                      </div>
+                    </NavigationMenuLink>
+                  </div>
+                </NavigationMenuContent>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <NavigationMenuTrigger>
+                  {props.item2 ?? 'Components'}
+                </NavigationMenuTrigger>
+                <NavigationMenuContent>
+                  <div className="grid gap-3 p-4 w-[400px] md:w-[500px]">
+                    <NavigationMenuLink className="block p-3 hover:bg-accent rounded-md cursor-pointer">
+                      <div className="font-medium mb-1">Browse Components</div>
+                      <div className="text-sm text-muted-foreground">
+                        Explore all available components
+                      </div>
+                    </NavigationMenuLink>
+                  </div>
+                </NavigationMenuContent>
+              </NavigationMenuItem>
+            </NavigationMenuList>
+          </NavigationMenu>
+        )
 
-    case 'navigation-menu':
-      return (
-        <NavigationMenu className="mx-auto">
-          <NavigationMenuList>
-            <NavigationMenuItem>
-              <NavigationMenuTrigger>
-                {props.item1 || 'Getting started'}
-              </NavigationMenuTrigger>
-              <NavigationMenuContent>
-                <div className="grid gap-3 p-4 w-[400px] md:w-[500px]">
-                  <NavigationMenuLink className="block p-3 hover:bg-accent rounded-md cursor-pointer">
-                    <div className="font-medium mb-1">Introduction</div>
-                    <div className="text-sm text-muted-foreground">
-                      Learn about the component library
-                    </div>
-                  </NavigationMenuLink>
-                </div>
-              </NavigationMenuContent>
-            </NavigationMenuItem>
-            <NavigationMenuItem>
-              <NavigationMenuTrigger>
-                {props.item2 || 'Components'}
-              </NavigationMenuTrigger>
-              <NavigationMenuContent>
-                <div className="grid gap-3 p-4 w-[400px] md:w-[500px]">
-                  <NavigationMenuLink className="block p-3 hover:bg-accent rounded-md cursor-pointer">
-                    <div className="font-medium mb-1">Browse Components</div>
-                    <div className="text-sm text-muted-foreground">
-                      Explore all available components
-                    </div>
-                  </NavigationMenuLink>
-                </div>
-              </NavigationMenuContent>
-            </NavigationMenuItem>
-          </NavigationMenuList>
-        </NavigationMenu>
-      )
+      case 'badge':
+        return (
+          <Badge
+            variant={props.variant ?? 'default'}
+            className={cn(props.className)}
+            style={props.style}
+          >
+            {props.text ?? props.children ?? 'Badge'}
+          </Badge>
+        )
 
-    case 'badge':
-      return (
-        <Badge variant={props.variant || 'default'} style={props.style} {...props}>
-          {props.text || props.children || 'Badge'}
-        </Badge>
-      )
+      case 'label':
+        return (
+          <Label className={cn(props.className)} style={props.style}>
+            {props.text ?? props.children ?? 'Label'}
+          </Label>
+        )
 
-    case 'label':
-      return (
-        <Label style={props.style} {...props}>
-          {props.text || props.children || 'Label'}
-        </Label>
-      )
-
-    default:
-      return <div>Unknown component type: {type}</div>
+      default:
+        return <div>Unknown component type: {type}</div>
+    }
+  } catch (error) {
+    console.error('Failed to render component preview', { type, props, error })
+    return (
+      <div className="rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
+        Failed to render preview for <code>{type}</code>
+      </div>
+    )
   }
 }
 

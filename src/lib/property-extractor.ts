@@ -3,6 +3,11 @@
  */
 
 import type { ComponentConfig } from './component-config'
+import {
+  applyAttributeUpdate,
+  applyContentUpdate,
+  applyTailwindClassUpdate,
+} from './tailwind-modifier'
 
 export type PropertyType =
   | 'string'
@@ -24,10 +29,30 @@ export type PropertyDefinition = {
   step?: number
   description?: string
   category?: string
+  /**
+   * How the property should be applied during code transformation.
+   * - 'class' replaces Tailwind utility classes
+   * - 'content' updates inner text/content
+   * - 'attribute' writes to a JSX attribute
+   */
+  apply?: 'class' | 'content' | 'attribute'
+  /**
+   * Tailwind utility group to replace (e.g., 'bg', 'text', 'p').
+   */
+  classGroup?: string
+  /**
+   * Optional class prefix used when constructing Tailwind utilities (e.g., 'bg-', 'text-').
+   */
+  classPrefix?: string
+  /**
+   * Attribute name when `apply` equals 'attribute'.
+   */
+  attributeName?: string
 }
 
 export type ComponentElement = {
   id: string
+  tag?: string
   type: string
   name: string
   properties: PropertyDefinition[]
@@ -60,6 +85,7 @@ export function extractPropertiesFromConfig(
     if (rootProperties.length > 0) {
       elements.push({
         id: 'root',
+        tag: 'div',
         type: config.metadata.name.toLowerCase().replace(/\s+/g, '-'),
         name: config.metadata.name,
         properties: rootProperties,
@@ -150,78 +176,105 @@ function getCommonStyleProps(): PropertyDefinition[] {
       name: 'padding',
       label: 'Padding',
       type: 'string',
-      defaultValue: '0',
+      defaultValue: 'p-0',
       category: 'Spacing',
       description: 'Inner spacing of the element',
+      apply: 'class',
+      classGroup: 'p',
+      classPrefix: 'p-',
     },
     {
       name: 'margin',
       label: 'Margin',
       type: 'string',
-      defaultValue: '0',
+      defaultValue: 'm-0',
       category: 'Spacing',
       description: 'Outer spacing of the element',
+      apply: 'class',
+      classGroup: 'm',
+      classPrefix: 'm-',
     },
     {
       name: 'backgroundColor',
       label: 'Background Color',
       type: 'color',
-      defaultValue: '#ffffff',
+      defaultValue: 'bg-white',
       category: 'Colors',
+      apply: 'class',
+      classGroup: 'bg',
+      classPrefix: 'bg-',
     },
     {
       name: 'color',
       label: 'Text Color',
       type: 'color',
-      defaultValue: '#000000',
+      defaultValue: 'text-slate-900',
       category: 'Colors',
+      apply: 'class',
+      classGroup: 'text',
+      classPrefix: 'text-',
     },
     {
       name: 'fontSize',
       label: 'Font Size',
       type: 'select',
-      defaultValue: '14px',
+      defaultValue: 'text-base',
       category: 'Typography',
+      apply: 'class',
+      classGroup: 'text',
+      classPrefix: 'text-',
       options: [
-        { label: 'Small', value: '12px' },
-        { label: 'Medium', value: '14px' },
-        { label: 'Large', value: '16px' },
-        { label: 'X-Large', value: '18px' },
+        { label: 'Small', value: 'text-sm' },
+        { label: 'Medium', value: 'text-base' },
+        { label: 'Large', value: 'text-lg' },
+        { label: 'X-Large', value: 'text-xl' },
       ],
     },
     {
       name: 'fontWeight',
       label: 'Font Weight',
       type: 'select',
-      defaultValue: 'normal',
+      defaultValue: 'font-normal',
       category: 'Typography',
+      apply: 'class',
+      classGroup: 'font',
+      classPrefix: 'font-',
       options: [
-        { label: 'Normal', value: 'normal' },
-        { label: 'Medium', value: '500' },
-        { label: 'Semibold', value: '600' },
-        { label: 'Bold', value: 'bold' },
+        { label: 'Normal', value: 'font-normal' },
+        { label: 'Medium', value: 'font-medium' },
+        { label: 'Semibold', value: 'font-semibold' },
+        { label: 'Bold', value: 'font-bold' },
       ],
     },
     {
       name: 'borderRadius',
       label: 'Border Radius',
       type: 'string',
-      defaultValue: '0',
+      defaultValue: 'rounded-none',
       category: 'Border',
+      apply: 'class',
+      classGroup: 'rounded',
+      classPrefix: 'rounded',
     },
     {
       name: 'borderWidth',
       label: 'Border Width',
       type: 'string',
-      defaultValue: '0',
+      defaultValue: 'border-0',
       category: 'Border',
+      apply: 'class',
+      classGroup: 'border',
+      classPrefix: 'border-',
     },
     {
       name: 'borderColor',
       label: 'Border Color',
       type: 'color',
-      defaultValue: '#000000',
+      defaultValue: 'border-transparent',
       category: 'Border',
+      apply: 'class',
+      classGroup: 'border',
+      classPrefix: 'border-',
     },
   ]
 }
@@ -264,13 +317,14 @@ function detectElementTypes(code: string): ComponentElement[] {
 
         // Add element-specific properties
         const tagLower = element.tag.toLowerCase()
-        if (tagLower === 'button') {
+        if (tagLower === 'button' || element.tag === 'Button') {
           elementProps.push({
             name: 'text',
             label: 'Text',
             type: 'string',
             defaultValue: 'Click me',
             category: 'Content',
+            apply: 'content',
           })
           elementProps.push({
             name: 'variant',
@@ -278,6 +332,9 @@ function detectElementTypes(code: string): ComponentElement[] {
             type: 'select',
             defaultValue: 'default',
             category: 'Appearance',
+            apply: element.tag === 'Button' ? 'attribute' : 'class',
+            attributeName: element.tag === 'Button' ? 'variant' : undefined,
+            classGroup: element.tag === 'Button' ? undefined : 'bg',
             options: [
               { label: 'Default', value: 'default' },
               { label: 'Secondary', value: 'secondary' },
@@ -293,6 +350,8 @@ function detectElementTypes(code: string): ComponentElement[] {
             type: 'select',
             defaultValue: 'default',
             category: 'Appearance',
+            apply: element.tag === 'Button' ? 'attribute' : 'class',
+            attributeName: element.tag === 'Button' ? 'size' : undefined,
             options: [
               { label: 'Default', value: 'default' },
               { label: 'Small', value: 'sm' },
@@ -307,6 +366,8 @@ function detectElementTypes(code: string): ComponentElement[] {
             type: 'string',
             defaultValue: '',
             category: 'Content',
+            apply: 'attribute',
+            attributeName: 'placeholder',
           })
           elementProps.push({
             name: 'type',
@@ -314,6 +375,8 @@ function detectElementTypes(code: string): ComponentElement[] {
             type: 'select',
             defaultValue: 'text',
             category: 'Behavior',
+            apply: 'attribute',
+            attributeName: 'type',
             options: [
               { label: 'Text', value: 'text' },
               { label: 'Email', value: 'email' },
@@ -329,6 +392,7 @@ function detectElementTypes(code: string): ComponentElement[] {
             type: 'string',
             defaultValue: 'Card Title',
             category: 'Content',
+            apply: 'content',
           })
           elementProps.push({
             name: 'description',
@@ -336,6 +400,7 @@ function detectElementTypes(code: string): ComponentElement[] {
             type: 'string',
             defaultValue: 'Card description',
             category: 'Content',
+            apply: 'content',
           })
           elementProps.push({
             name: 'content',
@@ -343,6 +408,7 @@ function detectElementTypes(code: string): ComponentElement[] {
             type: 'textarea',
             defaultValue: 'Card content goes here',
             category: 'Content',
+            apply: 'content',
           })
         } else if (tagLower === 'badge') {
           elementProps.push({
@@ -351,6 +417,7 @@ function detectElementTypes(code: string): ComponentElement[] {
             type: 'string',
             defaultValue: 'Badge',
             category: 'Content',
+            apply: 'content',
           })
           elementProps.push({
             name: 'variant',
@@ -358,6 +425,8 @@ function detectElementTypes(code: string): ComponentElement[] {
             type: 'select',
             defaultValue: 'default',
             category: 'Appearance',
+            apply: 'attribute',
+            attributeName: 'variant',
             options: [
               { label: 'Default', value: 'default' },
               { label: 'Secondary', value: 'secondary' },
@@ -372,6 +441,7 @@ function detectElementTypes(code: string): ComponentElement[] {
             type: 'string',
             defaultValue: 'Dialog Title',
             category: 'Content',
+            apply: 'content',
           })
           elementProps.push({
             name: 'description',
@@ -379,6 +449,7 @@ function detectElementTypes(code: string): ComponentElement[] {
             type: 'string',
             defaultValue: 'Dialog description',
             category: 'Content',
+            apply: 'content',
           })
           elementProps.push({
             name: 'triggerText',
@@ -386,6 +457,7 @@ function detectElementTypes(code: string): ComponentElement[] {
             type: 'string',
             defaultValue: 'Open Dialog',
             category: 'Content',
+            apply: 'content',
           })
         } else if (tagLower === 'navigationmenu') {
           elementProps.push({
@@ -394,6 +466,7 @@ function detectElementTypes(code: string): ComponentElement[] {
             type: 'string',
             defaultValue: 'Open Menu',
             category: 'Content',
+            apply: 'content',
           })
           elementProps.push({
             name: 'items',
@@ -401,6 +474,7 @@ function detectElementTypes(code: string): ComponentElement[] {
             type: 'textarea',
             defaultValue: 'Item 1, Item 2, Item 3',
             category: 'Content',
+            apply: 'content',
           })
           elementProps.push({
             name: 'orientation',
@@ -408,6 +482,8 @@ function detectElementTypes(code: string): ComponentElement[] {
             type: 'select',
             defaultValue: 'horizontal',
             category: 'Appearance',
+            apply: 'attribute',
+            attributeName: 'orientation',
             options: [
               { label: 'Horizontal', value: 'horizontal' },
               { label: 'Vertical', value: 'vertical' },
@@ -420,6 +496,7 @@ function detectElementTypes(code: string): ComponentElement[] {
             type: 'string',
             defaultValue: 'Label',
             category: 'Content',
+            apply: 'content',
           })
         } else if (element.tag === 'img') {
           elementProps.push({
@@ -428,6 +505,8 @@ function detectElementTypes(code: string): ComponentElement[] {
             type: 'string',
             defaultValue: '',
             category: 'Content',
+            apply: 'attribute',
+            attributeName: 'src',
           })
           elementProps.push({
             name: 'alt',
@@ -435,6 +514,8 @@ function detectElementTypes(code: string): ComponentElement[] {
             type: 'string',
             defaultValue: '',
             category: 'Content',
+            apply: 'attribute',
+            attributeName: 'alt',
           })
         } else if (['h1', 'h2', 'h3', 'p', 'span'].includes(element.tag)) {
           elementProps.push({
@@ -443,6 +524,7 @@ function detectElementTypes(code: string): ComponentElement[] {
             type: 'textarea',
             defaultValue: 'Sample text',
             category: 'Content',
+            apply: 'content',
           })
         } else if (element.tag === 'a') {
           elementProps.push({
@@ -451,6 +533,8 @@ function detectElementTypes(code: string): ComponentElement[] {
             type: 'string',
             defaultValue: '#',
             category: 'Content',
+            apply: 'attribute',
+            attributeName: 'href',
           })
           elementProps.push({
             name: 'text',
@@ -458,11 +542,13 @@ function detectElementTypes(code: string): ComponentElement[] {
             type: 'string',
             defaultValue: 'Link',
             category: 'Content',
+            apply: 'content',
           })
         }
 
         elements.push({
           id: `${element.tag.toLowerCase()}-${index}-${matchIndex}`,
+          tag: element.tag,
           type: element.tag.toLowerCase(),
           name: `${element.name} ${matchIndex + 1}`,
           properties: elementProps,
@@ -502,16 +588,39 @@ export function getDefaultPropertyValues(
  */
 export function applyPropertyChanges(
   code: string,
-  elementId: string,
-  propertyName: string,
+  element: ComponentElement,
+  property: PropertyDefinition,
   value: any
 ): string {
-  // This is a simplified implementation
-  // In a real implementation, you'd use a proper AST transformation
+  try {
+    const tag = element.tag || element.type
+    if (!tag) return code
 
-  // For now, just return the original code
-  // This would need to be implemented properly with AST manipulation
+    switch (property.apply) {
+      case 'content':
+        return replaceElementContent(code, tag, element.id, value)
+      case 'attribute':
+        return replaceElementAttribute(
+          code,
+          tag,
+          element.id,
+          property.attributeName || property.name,
+          value
+        )
+      case 'class':
+      default:
+        return replaceElementClass(
+          code,
+          tag,
+          element.id,
+          typeof value === 'string' ? value : '',
+          property
+        )
+    }
+  } catch (error) {
+    console.warn('Failed to apply property change', { element, property, value, error })
   return code
+  }
 }
 
 /**
@@ -527,5 +636,55 @@ export function getPropertyCategories(
     }
   })
   return Array.from(categories).sort()
+}
+
+function replaceElementClass(
+  code: string,
+  tag: string,
+  elementId: string,
+  value: string,
+  property: PropertyDefinition
+): string {
+  const updated = applyTailwindClassUpdate({
+    code,
+    tag,
+    elementId,
+    nextClass: value,
+    classGroup: property.classGroup,
+    classPrefix: property.classPrefix,
+  })
+  return updated ?? code
+}
+
+function replaceElementAttribute(
+  code: string,
+  tag: string,
+  elementId: string,
+  attribute: string,
+  value: any
+): string {
+  const updated = applyAttributeUpdate({
+    code,
+    tag,
+    elementId,
+    attribute,
+    value,
+  })
+  return updated ?? code
+}
+
+function replaceElementContent(
+  code: string,
+  tag: string,
+  elementId: string,
+  value: any
+): string {
+  const updated = applyContentUpdate({
+    code,
+    tag,
+    elementId,
+    value,
+  })
+  return updated ?? code
 }
 

@@ -45,6 +45,7 @@ type PropertyManagerProps = {
   selectedSize?: string
   onSizeChange?: (size: string) => void
   onResetOverrides?: (elementId: string) => void
+  showAdvancedOverrides?: boolean
 }
 
 export default function PropertyManager({
@@ -59,6 +60,7 @@ export default function PropertyManager({
   selectedSize,
   onSizeChange,
   onResetOverrides,
+  showAdvancedOverrides = true,
 }: PropertyManagerProps) {
   const [colorPickerOpen, setColorPickerOpen] = useState<string | null>(null)
   
@@ -158,25 +160,44 @@ export default function PropertyManager({
           </div>
         )
 
-      case 'color':
-        const colorValue = value || '#000000'
+      case 'color': {
+        const fallbackColor = typeof prop.defaultValue === 'string' ? prop.defaultValue : '#000000'
+        const colorValue = value ?? fallbackColor
+        const colorString = typeof colorValue === 'string' ? colorValue : String(colorValue ?? '')
+        const isTailwindUtility =
+          typeof colorString === 'string' &&
+          !colorString.startsWith('#') &&
+          !colorString.startsWith('rgb') &&
+          !colorString.startsWith('hsl')
         const isColorPickerOpen = colorPickerOpen === propertyKey
+
+        if (isTailwindUtility) {
+          return (
+            <Input
+              type="text"
+              value={colorString}
+              onChange={(e) => onPropertyChange(propertyKey, e.target.value)}
+              placeholder={prop.label}
+            />
+          )
+        }
+
         return (
           <div className="flex gap-2 relative">
             <div
               className="h-9 w-16 rounded border cursor-pointer"
-              style={{ backgroundColor: colorValue }}
+              style={{ backgroundColor: colorString || '#000000' }}
               onClick={() => setColorPickerOpen(isColorPickerOpen ? null : propertyKey)}
             />
             {isColorPickerOpen && (
               <div className="absolute z-10 top-12 left-0 p-4 bg-background border rounded-lg shadow-lg">
                 <HexColorPicker
-                  color={colorValue}
+                  color={colorString || '#000000'}
                   onChange={(color) => onPropertyChange(propertyKey, color)}
                 />
                 <Input
                   type="text"
-                  value={colorValue}
+                  value={colorString || ''}
               onChange={(e) => onPropertyChange(propertyKey, e.target.value)}
                   className="mt-2"
                   placeholder={prop.label}
@@ -185,13 +206,14 @@ export default function PropertyManager({
             )}
             <Input
               type="text"
-              value={value || ''}
+              value={colorString || ''}
               onChange={(e) => onPropertyChange(propertyKey, e.target.value)}
               className="flex-1"
               placeholder={prop.label}
             />
           </div>
         )
+      }
 
       case 'number':
         return (
@@ -350,7 +372,7 @@ export default function PropertyManager({
             )}
 
             {/* Advanced customization options - always available when element is selected */}
-            {selectedElement && (
+            {showAdvancedOverrides && selectedElement && (
               <>
                 <Separator className="my-4" />
                 <AccordionItem value="advanced-styles">

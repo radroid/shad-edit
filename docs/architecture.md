@@ -4,13 +4,19 @@
 
 - **Catalog** – public, curated shadcn-based components stored in Convex `catalogComponents`.
 - **Projects** – authenticated workspaces where teams clone catalog entries, apply theme tokens, and manage variants (`projectComponents`, `projectVariants`).
-- **Marketplace** – discovery surface that blends catalog metadata with published project variants (`components`).
+- **Marketplace** – first-touch discovery surface that blends catalog metadata with published project variants (`components`) and now serves as the default landing route for every user session.
+
+### Entry Experience
+
+- `/` redirects to `/marketplace`, ensuring guests immediately browse available components.
+- Guest editors work entirely from the marketplace overlay—property edits persist to browser storage (`localStorage`) so sign-in is optional.
+- Authenticated users can promote marketplace edits into their Convex-backed projects through the same overlay without losing in-progress changes.
 
 ### Frontend Layers
 
 - `src/routes` uses TanStack Start file-based routing with nested routes under `marketplace/` and `projects/$projectId/…`.
-- `src/components/marketplace` renders discovery UI, cards, and overlays using live previews.
-- `src/components/editor` hosts the three-panel editor (canvas, property manager, asset selector).
+- `src/components/marketplace` renders discovery UI, cards, overlays, and the guest editor surface with live previews.
+- `src/components/editor` hosts the three-panel editor (canvas, property manager, asset selector) and now supports both guest (cache-backed) and project (Convex-backed) modes.
 - `src/components/projects` contains theming helpers (`ProjectThemeProvider`, `ThemeEditor`).
 - `src/components/ui` houses the shadcn/ui primitives that power both catalog entries and core UI.
 
@@ -18,13 +24,22 @@
 
 1. **Catalog ingestion** – Admins or automation call `convex/catalogComponents.addCatalogComponent` with code, Tailwind property metadata, default variants, and dependencies.
 2. **Marketplace browse** – `marketplace/index.tsx` loads catalog entries through `useCatalogComponents` and renders previews via `src/lib/component-renderer.tsx`.
-3. **Project cloning** – Selecting *Use in project* creates a `projectComponents` record linked back to the catalog component ID and copies variant defaults.
-4. **Editor session** – `/projects/:projectId/components/:componentId` loads:
+3. **Guest editing (optional)** – Selecting *Edit component* in the overlay spawns a cache-backed editing session:
+   - Tailwind properties are extracted client-side via `property-extractor`.
+   - Property changes persist to `localStorage` (`guestEdits`) and re-render instantly.
+   - Guests may continue anonymously or sign in later to promote their edits.
+4. **Project cloning** – Selecting *Use in project* (guest or authenticated) creates a Convex `projectComponents` record linked back to the catalog component ID and copies variant defaults. If the user previously edited the component as a guest, cached properties are migrated into the new project record.
+5. **Editor session** – `/projects/:projectId/components/:componentId` loads:
    - Catalog config for structural metadata.
-   - Project component for saved variant properties.
+   - Project component for saved variant properties (or migrated guest edits).
    - Project theme for brand tokens.
    Property changes update Convex through debounced mutations, and the canvas regenerates code with `generateCodeWithTheme`.
-5. **Publishing** – When an authenticated user publishes, Convex snapshots the themed JSX, persists variant metadata, and flags the component in `components` as public for marketplace reuse.
+6. **Publishing** – When an authenticated user publishes, Convex snapshots the themed JSX, persists variant metadata, and flags the component in `components` as public for marketplace reuse.
+
+### Persistence Modes
+
+- **Guest cache** – browser `localStorage` (namespaced by component ID) stores Tailwind property bags plus timestamp/version metadata. Used only on `/marketplace` guest sessions.
+- **Convex** – authenticated sessions persist via `projectComponents`, `projects`, and related tables. Cache migrations clear the guest store after successful import so Convex stays authoritative.
 
 ### Convex Tables (Simplified)
 
@@ -39,7 +54,8 @@
 ### Support Libraries
 
 - `src/lib/component-config.ts` – shared types for metadata, properties, and variant mappings.
-- `src/lib/property-extractor.ts` – converts catalog configs into editor-ready structures and property definitions.
+- `src/lib/property-extractor.ts` – converts catalog configs into editor-ready structures and property definitions, aware of Tailwind utility mappings.
+- `src/lib/tailwind-modifier.ts` – (new) adjusts Tailwind utility classes when properties change, shared across guest and project editors.
 - `src/lib/catalog-hooks.ts` – Convex query hooks for catalog data.
 - `src/lib/component-renderer.tsx` – deterministic renderer for shadcn/ui previews across marketplace, overlay, and editor.
 - `src/lib/code-transformer.ts` – injects project theme tokens into generated code.

@@ -16,6 +16,7 @@ import { Route as MarketplaceComponentIdRouteImport } from './routes/marketplace
 import { Route as AuthSignUpRouteImport } from './routes/auth/sign-up'
 import { Route as AuthSignInRouteImport } from './routes/auth/sign-in'
 import { Route as ProjectsProjectIdIndexRouteImport } from './routes/projects/$projectId/index'
+import { Route as MarketplaceComponentIdEditRouteImport } from './routes/marketplace/$componentId/edit'
 import { Route as ProjectsProjectIdComponentsIndexRouteImport } from './routes/projects/$projectId/components/index'
 import { Route as ProjectsProjectIdComponentsComponentIdRouteImport } from './routes/projects/$projectId/components/$componentId'
 
@@ -54,6 +55,12 @@ const ProjectsProjectIdIndexRoute = ProjectsProjectIdIndexRouteImport.update({
   path: '/projects/$projectId/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MarketplaceComponentIdEditRoute =
+  MarketplaceComponentIdEditRouteImport.update({
+    id: '/edit',
+    path: '/edit',
+    getParentRoute: () => MarketplaceComponentIdRoute,
+  } as any)
 const ProjectsProjectIdComponentsIndexRoute =
   ProjectsProjectIdComponentsIndexRouteImport.update({
     id: '/projects/$projectId/components/',
@@ -71,9 +78,10 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-up': typeof AuthSignUpRoute
-  '/marketplace/$componentId': typeof MarketplaceComponentIdRoute
+  '/marketplace/$componentId': typeof MarketplaceComponentIdRouteWithChildren
   '/marketplace': typeof MarketplaceIndexRoute
   '/projects': typeof ProjectsIndexRoute
+  '/marketplace/$componentId/edit': typeof MarketplaceComponentIdEditRoute
   '/projects/$projectId': typeof ProjectsProjectIdIndexRoute
   '/projects/$projectId/components/$componentId': typeof ProjectsProjectIdComponentsComponentIdRoute
   '/projects/$projectId/components': typeof ProjectsProjectIdComponentsIndexRoute
@@ -82,9 +90,10 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-up': typeof AuthSignUpRoute
-  '/marketplace/$componentId': typeof MarketplaceComponentIdRoute
+  '/marketplace/$componentId': typeof MarketplaceComponentIdRouteWithChildren
   '/marketplace': typeof MarketplaceIndexRoute
   '/projects': typeof ProjectsIndexRoute
+  '/marketplace/$componentId/edit': typeof MarketplaceComponentIdEditRoute
   '/projects/$projectId': typeof ProjectsProjectIdIndexRoute
   '/projects/$projectId/components/$componentId': typeof ProjectsProjectIdComponentsComponentIdRoute
   '/projects/$projectId/components': typeof ProjectsProjectIdComponentsIndexRoute
@@ -94,9 +103,10 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-up': typeof AuthSignUpRoute
-  '/marketplace/$componentId': typeof MarketplaceComponentIdRoute
+  '/marketplace/$componentId': typeof MarketplaceComponentIdRouteWithChildren
   '/marketplace/': typeof MarketplaceIndexRoute
   '/projects/': typeof ProjectsIndexRoute
+  '/marketplace/$componentId/edit': typeof MarketplaceComponentIdEditRoute
   '/projects/$projectId/': typeof ProjectsProjectIdIndexRoute
   '/projects/$projectId/components/$componentId': typeof ProjectsProjectIdComponentsComponentIdRoute
   '/projects/$projectId/components/': typeof ProjectsProjectIdComponentsIndexRoute
@@ -110,6 +120,7 @@ export interface FileRouteTypes {
     | '/marketplace/$componentId'
     | '/marketplace'
     | '/projects'
+    | '/marketplace/$componentId/edit'
     | '/projects/$projectId'
     | '/projects/$projectId/components/$componentId'
     | '/projects/$projectId/components'
@@ -121,6 +132,7 @@ export interface FileRouteTypes {
     | '/marketplace/$componentId'
     | '/marketplace'
     | '/projects'
+    | '/marketplace/$componentId/edit'
     | '/projects/$projectId'
     | '/projects/$projectId/components/$componentId'
     | '/projects/$projectId/components'
@@ -132,6 +144,7 @@ export interface FileRouteTypes {
     | '/marketplace/$componentId'
     | '/marketplace/'
     | '/projects/'
+    | '/marketplace/$componentId/edit'
     | '/projects/$projectId/'
     | '/projects/$projectId/components/$componentId'
     | '/projects/$projectId/components/'
@@ -141,7 +154,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthSignInRoute: typeof AuthSignInRoute
   AuthSignUpRoute: typeof AuthSignUpRoute
-  MarketplaceComponentIdRoute: typeof MarketplaceComponentIdRoute
+  MarketplaceComponentIdRoute: typeof MarketplaceComponentIdRouteWithChildren
   MarketplaceIndexRoute: typeof MarketplaceIndexRoute
   ProjectsIndexRoute: typeof ProjectsIndexRoute
   ProjectsProjectIdIndexRoute: typeof ProjectsProjectIdIndexRoute
@@ -200,6 +213,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsProjectIdIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/marketplace/$componentId/edit': {
+      id: '/marketplace/$componentId/edit'
+      path: '/edit'
+      fullPath: '/marketplace/$componentId/edit'
+      preLoaderRoute: typeof MarketplaceComponentIdEditRouteImport
+      parentRoute: typeof MarketplaceComponentIdRoute
+    }
     '/projects/$projectId/components/': {
       id: '/projects/$projectId/components/'
       path: '/projects/$projectId/components'
@@ -217,11 +237,25 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface MarketplaceComponentIdRouteChildren {
+  MarketplaceComponentIdEditRoute: typeof MarketplaceComponentIdEditRoute
+}
+
+const MarketplaceComponentIdRouteChildren: MarketplaceComponentIdRouteChildren =
+  {
+    MarketplaceComponentIdEditRoute: MarketplaceComponentIdEditRoute,
+  }
+
+const MarketplaceComponentIdRouteWithChildren =
+  MarketplaceComponentIdRoute._addFileChildren(
+    MarketplaceComponentIdRouteChildren,
+  )
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthSignInRoute: AuthSignInRoute,
   AuthSignUpRoute: AuthSignUpRoute,
-  MarketplaceComponentIdRoute: MarketplaceComponentIdRoute,
+  MarketplaceComponentIdRoute: MarketplaceComponentIdRouteWithChildren,
   MarketplaceIndexRoute: MarketplaceIndexRoute,
   ProjectsIndexRoute: ProjectsIndexRoute,
   ProjectsProjectIdIndexRoute: ProjectsProjectIdIndexRoute,

@@ -12,6 +12,7 @@ import { ConvexProviderWithClerk } from 'convex/react-clerk'
 import { ClerkProvider, useAuth } from '@clerk/clerk-react'
 import { convex } from '../lib/convex'
 import { api } from '../../convex/_generated/api'
+import { GuestEditMigration } from '../components/auth/GuestEditMigration'
 
 export const Route = createRootRoute({
   head: () => ({
@@ -65,6 +66,7 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
             <Authenticated>
               <EnsureUser />
             </Authenticated>
+            <GuestEditMigration />
             <Header />
             {children}
           </ConvexProviderWithClerk>

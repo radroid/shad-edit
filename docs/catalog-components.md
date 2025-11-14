@@ -1,6 +1,6 @@
 ## Catalog Component Workflow
 
-This guide explains how curated shadcn/ui components flow from the catalog into projects and the marketplace.
+This guide explains how curated shadcn/ui components flow from the catalog into projects, the guest editor, and the marketplace.
 
 ### 1. Compose a Catalog Entry
 
@@ -8,14 +8,16 @@ Catalog components live entirely in Convex (`catalogComponents` table). Each ent
 
 - `componentId` – kebab-case identifier (`floating-button`, `marketing-hero`).
 - `code` – JSX/TSX built from shadcn/ui primitives and Tailwind utilities.
-- `tailwindProperties` – array of editable tokens exposed in the ShadE-it editor. Each item matches the shape used in `convex/catalogComponents.addCatalogComponent` (name, label, type, defaultValue, options, category, description).
+- `tailwindProperties` – array of editable tokens exposed in the ShadE-it editor. Each item matches the shape used in `convex/catalogComponents.addCatalogComponent` (name, label, type, defaultValue, options, category, description) and should map directly to Tailwind utilities or known CSS variables.
 - `variants` – optional presets with `name`, `description`, and `properties` payloads that map to property names.
 - `dependencies` / `files` – any supporting imports or usage snippets.
 
 Authoring tips:
-- Use semantic property names (`backgroundColor`, `headline`) and provide defaults.
+- Use semantic property names (`backgroundColor`, `headline`) and provide defaults. Include `elementId` references when a property targets a specific node so the extractor can namespace keys as `${elementId}.${property}`.
 - Keep variant names short (`default`, `secondary`, `ghost`).
 - Ensure the code sample imports from `@/components/ui/*` so the editor and exported code share primitives.
+- Prefer Tailwind utilities over inline styles; the Tailwind modifier can only reason about classes it recognizes.
+- Document responsive or state-specific classes (e.g., `md:flex`, `hover:bg-primary/80`) inside `tailwindProperties.metadata.responsive` to help the modifier avoid collisions.
 
 ### 2. Add or Update via Convex
 
@@ -46,7 +48,13 @@ await addCatalogComponent({
 
 The mutation upserts by `componentId`, so re-running the same payload updates existing entries.
 
-### 3. Clone into a Project
+### 3. Guest Editing & Cache Compatibility
+
+- When the marketplace overlay loads a component, it hydrates from `tailwindProperties` and stores guest edits in `localStorage`.
+- Ensure default variant data is serializable; avoid functions or non-JSON values.
+- Provide conservative defaults so guest previews look complete without project themes.
+
+### 4. Clone into a Project
 
 When a user elects to use a catalog component, Convex creates a `projectComponents` record:
 
@@ -57,7 +65,7 @@ When a user elects to use a catalog component, Convex creates a `projectComponen
 
 Variants render inside `ProjectThemeProvider`, so design tokens from `projects` apply instantly.
 
-### 4. Save and Publish Variants
+### 5. Save and Publish Variants
 
 - **Save Draft**: Persists edits on the `projectComponents` record without exposing them publicly.
 - **Publish**: Calls `convex/components.publishComponent`, snapshots themed code, and either creates or updates a `componentConfigs` + `components` entry flagged `isPublic: true`.
@@ -70,6 +78,7 @@ Published components return to the marketplace as reusable templates. The origin
 - Update `version` when making breaking changes to property structure.
 - Provide descriptive `tags` to enhance search and filtering once implemented.
 - When deprecating a component, add a `status` tag (e.g., `deprecated`) and migrate projects before removal.
+- Document Tailwind utility expectations in the catalog entry notes so future authors maintain extractor compatibility.
 
 ### Troubleshooting
 

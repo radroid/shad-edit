@@ -1,3 +1,91 @@
+/**
+ * Utility helpers for working with Tailwind utility classes.
+ */
+
+export function splitClassString(value: string | undefined | null): string[] {
+  if (!value) return []
+  if (Array.isArray(value)) {
+    return value.flatMap((entry) => splitClassString(String(entry)))
+  }
+  return String(value)
+    .split(/\s+/)
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+}
+
+export function joinClassNames(classes: string[]): string {
+  return Array.from(new Set(classes.filter(Boolean))).join(' ').trim()
+}
+
+export function toClassGroup(className: string): string {
+  const trimmed = className.trim()
+  if (!trimmed) return ''
+
+  const segments = trimmed.split(':')
+  const base = segments.pop() ?? ''
+
+  const baseGroup = extractBaseGroup(base)
+  if (segments.length === 0) return baseGroup
+  return `${segments.join(':')}:${baseGroup}`
+}
+
+function extractBaseGroup(base: string): string {
+  if (!base) return ''
+
+  // Handle negative utilities like -mt-2
+  const negative = base.startsWith('-')
+  const cleaned = negative ? base.slice(1) : base
+
+  // Extract portion before first '-' or '[' (for arbitrary values)
+  const match = cleaned.match(/^([a-zA-Z]+)(?=[-\[]|$)/)
+  const group = match ? match[1] : cleaned
+
+  return negative ? `-${group}` : group
+}
+
+export function normalizeTailwindValue(
+  value: string,
+  classPrefix?: string
+): string[] {
+  const classes = splitClassString(value)
+
+  if (classes.length > 0) {
+    return classes
+  }
+
+  if (!classPrefix) {
+    return value ? [value] : []
+  }
+
+  return value ? [`${classPrefix}${value}`] : []
+}
+
+export function removeGroupClasses(
+  existing: string[],
+  group: string
+): string[] {
+  if (!group) return existing
+  return existing.filter((cls) => toClassGroup(cls) !== group)
+}
+
+export function mergeTailwindClasses(
+  existing: string[],
+  next: string[],
+  group?: string
+): string[] {
+  const nextGroups = new Set(
+    next.map((cls) => toClassGroup(cls) || group || '')
+  )
+
+  const filteredExisting = existing.filter((cls) => {
+    const clsGroup = toClassGroup(cls)
+    if (group && clsGroup === group) return false
+    if (nextGroups.has(clsGroup)) return false
+    return true
+  })
+
+  return [...filteredExisting, ...next].filter(Boolean)
+}
 import { twMerge } from 'tailwind-merge'
 
 export type TailwindProperty = {

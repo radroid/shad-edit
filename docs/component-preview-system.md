@@ -37,4 +37,30 @@ The preview system keeps marketplace cards, overlays, and the project editor in 
 - Open a card overlay; ensure the preview respects theme tokens and property defaults.
 - Load the associated project editor page; property changes should immediately re-render the component.
 
+### Telemetry & Monitoring
+
+The application uses Sentry for error tracking and performance monitoring:
+
+- **Error Tracking**: All errors in the preview system are automatically captured with context (component type, props, property values).
+- **Performance Monitoring**: Component render times are tracked via `convex.operation.duration` metrics.
+- **Cache Operations**: Guest edit cache reads, writes, and clears are instrumented with breadcrumbs.
+- **Tailwind Modifier**: Parse and modification operations are tracked to identify performance bottlenecks.
+
+**Available Metrics**:
+- `convex.operation.duration` - Convex query/mutation latency
+- Guest editor usage breadcrumbs (edit, save, clear, migrate actions)
+- Cache operation breadcrumbs (read, write, clear, migrate)
+- Tailwind modifier operation breadcrumbs (parse, modify, apply)
+
+**Alert Configuration**:
+- Critical errors in component rendering trigger immediate alerts
+- Cache quota exceeded errors are filtered (non-critical)
+- Performance degradation alerts can be configured for render times > 500ms
+
+**Runbook**:
+1. Check Sentry dashboard for error trends
+2. Review performance metrics for slow operations
+3. Investigate cache operation failures (usually quota-related)
+4. Monitor Tailwind modifier parse errors (indicates malformed code)
+
 

@@ -55,6 +55,8 @@ export const addCatalogComponent = mutation({
     version: v.string(),
     code: v.string(),
     tailwindProperties: v.array(v.any()),
+    editableElements: v.optional(v.array(v.any())),
+    globalProperties: v.optional(v.array(v.any())),
     variants: v.array(v.any()),
     dependencies: v.optional(v.any()),
     files: v.optional(v.array(v.any())),
@@ -79,6 +81,8 @@ export const addCatalogComponent = mutation({
         version: args.version,
         code: args.code,
         tailwindProperties: args.tailwindProperties,
+        editableElements: args.editableElements,
+        globalProperties: args.globalProperties,
         variants: args.variants,
         dependencies: args.dependencies,
         files: args.files,
@@ -97,6 +101,8 @@ export const addCatalogComponent = mutation({
         version: args.version,
         code: args.code,
         tailwindProperties: args.tailwindProperties,
+        editableElements: args.editableElements,
+        globalProperties: args.globalProperties,
         variants: args.variants,
         dependencies: args.dependencies,
         files: args.files,
@@ -104,6 +110,36 @@ export const addCatalogComponent = mutation({
         updatedAt: now,
       })
     }
+  },
+})
+
+/**
+ * Update a catalog component's editableElements and globalProperties
+ * This is used by the migration script
+ */
+export const updateCatalogComponent = mutation({
+  args: {
+    componentId: v.string(),
+    editableElements: v.optional(v.array(v.any())),
+    globalProperties: v.optional(v.array(v.any())),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query('catalogComponents')
+      .withIndex('by_componentId', (q) => q.eq('componentId', args.componentId))
+      .first()
+    
+    if (!existing) {
+      throw new Error(`Component with ID ${args.componentId} not found`)
+    }
+    
+    await ctx.db.patch(existing._id, {
+      editableElements: args.editableElements,
+      globalProperties: args.globalProperties,
+      updatedAt: Date.now(),
+    })
+    
+    return existing._id
   },
 })
 

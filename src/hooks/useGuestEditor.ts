@@ -129,7 +129,7 @@ export function useGuestEditor(
           state.cachedRecord?.properties?.[key] ??
           property.defaultValue
         if (value !== undefined) {
-          updatedCode = applyPropertyChanges(updatedCode, element, property, value)
+          updatedCode = applyPropertyChanges(updatedCode, element, property, value, config)
         }
       })
     })

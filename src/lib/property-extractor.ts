@@ -68,25 +68,176 @@ export type ComponentStructure = {
 /**
  * Extract properties from component config
  * This is the preferred method - uses the component's configuration
+ * Now supports the enhanced schema with editableElements
  */
 export function extractPropertiesFromConfig(
   config: ComponentConfig
 ): ComponentStructure {
+  // If editableElements are provided, use them (new schema-based approach)
+  if (config.editableElements && config.editableElements.length > 0) {
+    // Infer component type from metadata name as fallback
+    const componentNameLower = (config.metadata.name || '').toLowerCase()
+    let inferredComponentType: string | undefined
+    
+    if (componentNameLower.includes('button') || componentNameLower === 'button') {
+      inferredComponentType = 'button'
+    } else if (componentNameLower.includes('input')) {
+      inferredComponentType = 'input'
+    } else if (componentNameLower.includes('card')) {
+      inferredComponentType = 'card'
+    } else if (componentNameLower.includes('dialog')) {
+      inferredComponentType = 'dialog'
+    } else if (componentNameLower.includes('badge')) {
+      inferredComponentType = 'badge'
+    } else if (componentNameLower.includes('label')) {
+      inferredComponentType = 'label'
+    } else if (componentNameLower.includes('navigation')) {
+      inferredComponentType = 'navigation-menu'
+    }
+    
+    const elements: ComponentElement[] = config.editableElements.map((el) => {
+      // Map component names to supported types
+      // The tag should already be mapped by AST generator, but we'll do a final check here
+      const tagLower = (el.tag || '').toLowerCase()
+      let mappedType = el.tag || el.id
+      
+      // Map common component names to their type identifiers
+      const componentTypeMap: Record<string, string> = {
+        'button': 'button',
+        'input': 'input',
+        'card': 'card',
+        'dialog': 'dialog',
+        'navigationmenu': 'navigation-menu',
+        'navigation-menu': 'navigation-menu',
+        'badge': 'badge',
+        'label': 'label',
+        // Handle shortened names
+        'comp': 'button', // Common abbreviation - assume button
+        'btn': 'button',
+        'inp': 'input',
+      }
+      
+      // Check if tag matches a known component type
+      if (tagLower in componentTypeMap) {
+        mappedType = componentTypeMap[tagLower]
+      } else if (el.tag && el.tag[0] === el.tag[0].toUpperCase()) {
+        // It's a component name (capitalized), try to map it
+        const normalized = el.tag.toLowerCase().replace(/([A-Z])/g, '-$1').toLowerCase()
+        if (normalized in componentTypeMap) {
+          mappedType = componentTypeMap[normalized]
+        } else {
+          // Try to infer from name patterns
+          const nameLower = (el.name || '').toLowerCase()
+          if (nameLower.includes('button') || nameLower === 'button') {
+            mappedType = 'button'
+          } else if (nameLower.includes('input')) {
+            mappedType = 'input'
+          } else if (nameLower.includes('card')) {
+            mappedType = 'card'
+          } else if (nameLower.includes('dialog')) {
+            mappedType = 'dialog'
+          } else if (nameLower.includes('badge')) {
+            mappedType = 'badge'
+          } else if (nameLower.includes('label')) {
+            mappedType = 'label'
+          } else if (inferredComponentType && (tagLower === 'comp' || nameLower === 'comp' || nameLower.includes('comp'))) {
+            // If we can't determine from element, use inferred type from component name
+            mappedType = inferredComponentType
+          }
+        }
+      } else if (tagLower === 'comp' && inferredComponentType) {
+        // "comp" tag with inferred type from component name
+        mappedType = inferredComponentType
+      }
+      
+      return {
+        id: el.id,
+        tag: el.tag,
+        type: mappedType,
+        name: el.name,
+        properties: el.properties,
+      }
+    })
+    
+    return {
+      name: config.metadata.name,
+      elements,
+      globalProperties: config.globalProperties || [],
+    }
+  }
+  
+  // Fallback to legacy approach: extract from code
   const elements = extractElementsFromCode(config.code)
+  
+  // Infer component type from metadata name for legacy components
+  const componentNameLower = (config.metadata.name || '').toLowerCase()
+  let inferredComponentType: string | undefined
+  
+  if (componentNameLower.includes('button') || componentNameLower === 'button') {
+    inferredComponentType = 'button'
+  } else if (componentNameLower.includes('input')) {
+    inferredComponentType = 'input'
+  } else if (componentNameLower.includes('card')) {
+    inferredComponentType = 'card'
+  } else if (componentNameLower.includes('dialog')) {
+    inferredComponentType = 'dialog'
+  } else if (componentNameLower.includes('badge')) {
+    inferredComponentType = 'badge'
+  } else if (componentNameLower.includes('label')) {
+    inferredComponentType = 'label'
+  } else if (componentNameLower.includes('navigation')) {
+    inferredComponentType = 'navigation-menu'
+  }
+  
+  // Map element types using inferred type
+  const mappedElements = elements.map((el) => {
+    const typeLower = (el.type || '').toLowerCase()
+    
+    // If type is "comp" or similar ambiguous name, use inferred type
+    if ((typeLower === 'comp' || typeLower.includes('comp')) && inferredComponentType) {
+      return {
+        ...el,
+        type: inferredComponentType,
+      }
+    }
+    
+    // Map common types
+    const typeMap: Record<string, string> = {
+      'button': 'button',
+      'input': 'input',
+      'card': 'card',
+      'dialog': 'dialog',
+      'navigation-menu': 'navigation-menu',
+      'navigationmenu': 'navigation-menu',
+      'badge': 'badge',
+      'label': 'label',
+      'comp': inferredComponentType || 'button', // Default to button if no inference
+      'btn': 'button',
+    }
+    
+    if (typeLower in typeMap) {
+      return {
+        ...el,
+        type: typeMap[typeLower],
+      }
+    }
+    
+    return el
+  })
   
   // If no elements found from code parsing, create a root element from config properties
   // This handles cases where the component is a function component without JSX elements in the template
-  if (elements.length === 0 && config.properties.length > 0) {
+  if (mappedElements.length === 0 && config.properties.length > 0) {
     // Create a root element with all non-layout properties
     const rootProperties = config.properties.filter(
       (prop) => !prop.category || prop.category !== 'Layout'
     )
     
     if (rootProperties.length > 0) {
-      elements.push({
+      mappedElements.push({
         id: 'root',
-        tag: 'div',
-        type: config.metadata.name.toLowerCase().replace(/\s+/g, '-'),
+        tag: inferredComponentType || 'div',
+        type: inferredComponentType || config.metadata.name.toLowerCase().replace(/\s+/g, '-'),
         name: config.metadata.name,
         properties: rootProperties,
       })
@@ -95,8 +246,8 @@ export function extractPropertiesFromConfig(
   
   return {
     name: config.metadata.name,
-    elements,
-    globalProperties: config.properties.filter(
+    elements: mappedElements,
+    globalProperties: config.globalProperties || config.properties.filter(
       (prop) => !prop.category || prop.category === 'Layout'
     ),
   }
@@ -585,18 +736,47 @@ export function getDefaultPropertyValues(
 
 /**
  * Apply property changes to component code
+ * Now supports schema-based configs with explicit element definitions
  */
 export function applyPropertyChanges(
   code: string,
   element: ComponentElement,
   property: PropertyDefinition,
-  value: any
+  value: any,
+  config?: ComponentConfig
 ): string {
   try {
     const tag = element.tag || element.type
     if (!tag) return code
 
-    switch (property.apply) {
+    // If config has editableElements, use the element's applyStrategy
+    let applyStrategy = property.apply || 'class'
+    let tailwindConfig: any = undefined
+    
+    if (config?.editableElements) {
+      const editableElement = config.editableElements.find((el) => el.id === element.id)
+      if (editableElement) {
+        // Map applyStrategy from editableElement
+        switch (editableElement.applyStrategy) {
+          case 'className':
+            applyStrategy = 'class'
+            break
+          case 'style':
+            applyStrategy = 'class' // For now, style uses class replacement
+            break
+          case 'attribute':
+            applyStrategy = 'attribute'
+            break
+          case 'cssVariable':
+            // CSS variables not yet implemented in tailwind-modifier
+            applyStrategy = 'class'
+            break
+        }
+        tailwindConfig = editableElement.tailwindConfig
+      }
+    }
+
+    switch (applyStrategy) {
       case 'content':
         return replaceElementContent(code, tag, element.id, value)
       case 'attribute':
@@ -614,12 +794,13 @@ export function applyPropertyChanges(
           tag,
           element.id,
           typeof value === 'string' ? value : '',
-          property
+          property,
+          tailwindConfig
         )
     }
   } catch (error) {
     console.warn('Failed to apply property change', { element, property, value, error })
-  return code
+    return code
   }
 }
 
@@ -643,14 +824,20 @@ function replaceElementClass(
   tag: string,
   elementId: string,
   value: string,
-  property: PropertyDefinition
+  property: PropertyDefinition,
+  tailwindConfig?: any
 ): string {
+  // Use classGroup from tailwindConfig if available, otherwise from property
+  const classGroup = tailwindConfig?.editableGroups?.includes(property.classGroup || '')
+    ? property.classGroup
+    : property.classGroup
+  
   const updated = applyTailwindClassUpdate({
     code,
     tag,
     elementId,
     nextClass: value,
-    classGroup: property.classGroup,
+    classGroup,
     classPrefix: property.classPrefix,
   })
   return updated ?? code

@@ -47,6 +47,7 @@ import {
   getAllComponentTypes,
   renderComponentPreview,
 } from '@/lib/component-renderer'
+import { cn } from '@/lib/utils'
 import { api } from '../../../convex/_generated/api'
 
 export default function ComponentOverlay({ 
@@ -526,6 +527,30 @@ function renderFallbackElement(
   props: Record<string, any>
 ) {
   const { className, text, children, ...rest } = props
+  
+  // Try to infer component type from element name or tag
+  const elementNameLower = (element.name || '').toLowerCase()
+  const elementTypeLower = (element.type || '').toLowerCase()
+  const elementTagLower = (element.tag || '').toLowerCase()
+  
+  // Check if it might be a known component type
+  const possibleTypes = [elementTypeLower, elementTagLower, elementNameLower]
+  const knownTypes = ['button', 'input', 'card', 'dialog', 'navigation-menu', 'badge', 'label']
+  
+  for (const possibleType of possibleTypes) {
+    if (knownTypes.includes(possibleType)) {
+      // Try to render as that component type
+      try {
+        return renderComponentPreview({
+          type: possibleType as ComponentType,
+          props,
+        })
+      } catch {
+        // If rendering fails, continue to fallback
+      }
+    }
+  }
+  
   switch (element.type) {
     case 'div':
       return (
@@ -553,9 +578,10 @@ function renderFallbackElement(
         </a>
       )
     default:
+      // Try to render as a generic div with styling
       return (
-        <div className={className} {...rest}>
-          {text || `Preview unavailable for ${element.name}`}
+        <div className={cn('inline-flex items-center justify-center', className)} {...rest}>
+          {text || element.name || 'Component'}
         </div>
       )
   }

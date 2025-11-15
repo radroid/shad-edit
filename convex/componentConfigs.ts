@@ -39,9 +39,12 @@ export const getComponentConfigById = query({
       },
       code: config.code,
       properties: config.properties,
+      editableElements: config.editableElements,
+      globalProperties: config.globalProperties,
       variableMappings: config.variableMappings,
       dependencies: config.dependencies,
       files: config.files,
+      variants: config.variants,
     } as ComponentConfig
   },
 })
@@ -73,9 +76,12 @@ export const upsertComponentConfig = mutation({
     version: v.optional(v.string()),
     code: v.string(),
     properties: v.array(v.any()),
+    editableElements: v.optional(v.array(v.any())),
+    globalProperties: v.optional(v.array(v.any())),
     variableMappings: v.optional(v.array(v.any())),
     dependencies: v.optional(v.any()),
     files: v.optional(v.array(v.any())),
+    variants: v.optional(v.array(v.any())),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity()
@@ -111,9 +117,12 @@ export const upsertComponentConfig = mutation({
         version: args.version,
         code: args.code,
         properties: args.properties,
+        editableElements: args.editableElements,
+        globalProperties: args.globalProperties,
         variableMappings: args.variableMappings,
         dependencies: args.dependencies,
         files: args.files,
+        variants: args.variants,
         updatedAt: now,
       })
       
@@ -130,9 +139,12 @@ export const upsertComponentConfig = mutation({
         version: args.version || '1.0.0',
         code: args.code,
         properties: args.properties,
+        editableElements: args.editableElements,
+        globalProperties: args.globalProperties,
         variableMappings: args.variableMappings,
         dependencies: args.dependencies,
         files: args.files,
+        variants: args.variants,
         authorId: user._id,
         createdAt: now,
         updatedAt: now,

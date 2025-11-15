@@ -26,7 +26,14 @@ export default defineSchema({
     code: v.string(),
     
     // Extractable Tailwind properties (padding, margin, colors, etc.)
+    // @deprecated Use editableElements instead
     tailwindProperties: v.array(v.any()),
+    
+    // Enhanced schema: explicit editable element definitions
+    editableElements: v.optional(v.array(v.any())),
+    
+    // Global properties (e.g., layout properties)
+    globalProperties: v.optional(v.array(v.any())),
     
     // Default variant configurations
     variants: v.array(v.any()),
@@ -80,4 +87,29 @@ export default defineSchema({
   })
     .index('by_project', ['projectId'])
     .index('by_project_catalog', ['projectId', 'catalogComponentId']),
+
+  // Component configs (user-created component configurations)
+  componentConfigs: defineTable({
+    componentId: v.string(),
+    name: v.string(),
+    description: v.optional(v.string()),
+    category: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
+    author: v.optional(v.string()),
+    version: v.optional(v.string()),
+    code: v.string(),
+    properties: v.array(v.any()),
+    editableElements: v.optional(v.array(v.any())),
+    globalProperties: v.optional(v.array(v.any())),
+    variableMappings: v.optional(v.array(v.any())),
+    dependencies: v.optional(v.any()),
+    files: v.optional(v.array(v.any())),
+    variants: v.optional(v.array(v.any())),
+    authorId: v.id('users'),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index('by_componentId', ['componentId'])
+    .index('by_category', ['category'])
+    .index('by_author', ['authorId']),
 })

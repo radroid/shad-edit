@@ -83,6 +83,89 @@ export type VariableMapping = {
 }
 
 /**
+ * Tailwind element configuration for fine-grained class management
+ */
+export type TailwindElementConfig = {
+  /**
+   * Which Tailwind class groups this element can edit
+   * e.g., ['bg', 'text', 'p', 'rounded']
+   */
+  editableGroups: string[]
+  
+  /**
+   * Base classes that should never be removed
+   * e.g., ['flex', 'items-center', 'justify-between']
+   */
+  preserveClasses?: string[]
+  
+  /**
+   * Class groups that should be replaced (not merged)
+   * When a new class in this group is added, old ones are removed
+   * e.g., ['bg', 'text'] - only one background/text color at a time
+   */
+  replaceGroups?: string[]
+  
+  /**
+   * Class groups that should be merged intelligently
+   * Multiple classes in these groups can coexist
+   * e.g., ['rounded', 'border'] - can have rounded-md and border-2
+   */
+  mergeGroups?: string[]
+}
+
+/**
+ * Strategy for applying property changes to elements
+ */
+export type ApplyStrategy = 'className' | 'style' | 'attribute' | 'cssVariable'
+
+/**
+ * Editable element definition - explicitly defines which elements can be edited
+ */
+export type EditableElement = {
+  /**
+   * Unique identifier for this element
+   * e.g., "button-0", "card-header-1"
+   */
+  id: string
+  
+  /**
+   * How to find this element in the code
+   * - Element tag: "button", "div"
+   * - Element ID: "#myId"
+   * - CSS class: ".myClass"
+   * - Component name: "Button", "Card"
+   * - Occurrence index: "button-0" (0th button in code)
+   */
+  selector: string
+  
+  /**
+   * Element tag name (for display and validation)
+   */
+  tag?: string
+  
+  /**
+   * Display name for the property panel
+   * e.g., "Primary Button", "Card Header"
+   */
+  name: string
+  
+  /**
+   * Explicit property definitions for this element
+   */
+  properties: PropertyDefinition[]
+  
+  /**
+   * How to apply changes to this element
+   */
+  applyStrategy: ApplyStrategy
+  
+  /**
+   * Tailwind class management configuration
+   */
+  tailwindConfig?: TailwindElementConfig
+}
+
+/**
  * Component configuration schema
  */
 export type ComponentConfig = {
@@ -99,15 +182,34 @@ export type ComponentConfig = {
   code: string
   
   /**
+   * Explicit editable element definitions
+   * When provided, this takes precedence over auto-discovery
+   */
+  editableElements?: EditableElement[]
+  
+  /**
    * Property definitions for the property editor
+   * @deprecated Use editableElements[].properties instead
+   * Kept for backward compatibility
    */
   properties: PropertyDefinition[]
+  
+  /**
+   * Global properties that apply to the whole component
+   * (e.g., layout properties like width, height)
+   */
+  globalProperties?: PropertyDefinition[]
   
   /**
    * Variable mappings - how to replace hardcoded values with properties
    * This is used to transform the code template based on property values
    */
   variableMappings?: VariableMapping[]
+  
+  /**
+   * Component variants (e.g., 'default', 'outline', 'ghost')
+   */
+  variants?: ComponentVariant[]
   
   /**
    * Dependencies required for this component

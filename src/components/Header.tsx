@@ -7,13 +7,18 @@ import {
   NavigationMenuLink,
 } from '@/components/ui/navigation-menu'
 import { cn } from '@/lib/utils'
-import { Package, FolderKanban } from 'lucide-react'
+import { Package, FolderKanban, Plus } from 'lucide-react'
 import { ModeToggle } from '@/components/ModeToggle'
 import { SignInButton, SignUpButton, UserButton } from '@clerk/clerk-react'
 import { Authenticated, Unauthenticated } from 'convex/react'
+import { useState } from 'react'
+import AddComponentDialog from '@/components/marketplace/AddComponentDialog'
 
 export default function Header() {
+  const [addComponentDialogOpen, setAddComponentDialogOpen] = useState(false)
+
   return (
+    <>
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
         <div className="flex items-center gap-6 md:gap-8">
@@ -54,6 +59,17 @@ export default function Header() {
         </div>
 
         <div className="flex items-center gap-3 md:gap-4">
+            <Authenticated>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setAddComponentDialogOpen(true)}
+                className="gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Add Component</span>
+              </Button>
+            </Authenticated>
           <ModeToggle />
           <Authenticated>
             <UserButton afterSignOutUrl="/" />
@@ -69,5 +85,12 @@ export default function Header() {
         </div>
       </div>
     </header>
+      <Authenticated>
+        <AddComponentDialog
+          open={addComponentDialogOpen}
+          onOpenChange={setAddComponentDialogOpen}
+        />
+      </Authenticated>
+    </>
   )
 }

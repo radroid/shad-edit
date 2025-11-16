@@ -11,7 +11,7 @@ Both modes share the same three-panel workspace for consistency.
 
 - **Header toolbar** – component name (inline rename), undo/redo, draft/save controls, variant selector, and publish call-to-action. Guest mode hides project-specific actions until a user signs in.
 - **Canvas (center)** – renders the live shadcn/ui component using `ComponentPreview` with project theme tokens.
-- **Property manager (right)** – contextual controls generated from catalog `tailwindProperties` and property extractor metadata.
+- **Property manager (right)** – groups editable fields into prop sections (accordion per shadcn prop/slot) with inline warnings for CSS variables/data states plus an embedded variant manager.
 - **Sidebar (left)** – shows other components in the project (`ComponentSelector`), including status pills and quick navigation.
 
 The canvas can toggle between preview and code view and supports device presets to spot responsive issues early.
@@ -30,9 +30,17 @@ The canvas can toggle between preview and code view and supports device presets 
 ### Property System
 
 - `extractPropertiesFromConfig` transforms catalog metadata into editor-ready definitions. Each property becomes a key of the form `${elementId}.${propertyName}` to support multi-element components.
+- Prop sections (`ComponentPropSection`) link those keys to semantic props (e.g., `variant`, `size`, `header slot`) and carry Tailwind metadata (class groups, CSS variable usage, animations, data-state selectors).
 - `tailwind-modifier` translates property mutations into Tailwind utility class updates, preserving non-Tailwind styles and responsive variants.
 - Supported control types include `string`, `select`, `color`, `boolean`, `slider`, and `textarea`. Extend via `PropertyManager.renderPropertyControl` when introducing new property types.
 - Guest mode routes property updates through `useGuestEditor` (cache-backed), while project mode continues using Convex mutations.
+
+### Prop Sections & Variant Manager
+
+- Each prop section renders as an accordion item with optional option metadata (parsed from `cva` definitions). Classes referencing `var(--token)` display an override warning so users understand when they disconnect from `global.css`.
+- Data attributes (e.g., `data-[state=open]`) and animation utilities surface inline badges, making it obvious when edits would affect state-driven styles.
+- The variant manager lists every component variant, supports duplication, removal, and renaming, and can capture the current set of overrides back into the variant definition so changes remain reproducible.
+- Variant creation/editing never blocks property editing—the same panel can switch between prop-level tweaks and full variant experiments without navigating away.
 
 ### Auth & Guest Access
 

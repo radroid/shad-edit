@@ -4,6 +4,7 @@
  */
 
 import type { PropertyDefinition } from './property-extractor'
+import type { TailwindClassMetadata } from './tailwind-utils'
 
 /**
  * Tailwind property definition for editable properties
@@ -24,6 +25,8 @@ export type ComponentVariant = {
   name: string // 'default', 'outline', 'ghost'
   displayName: string
   properties: Record<string, any> // Property overrides for this variant
+  description?: string
+  classMetadata?: TailwindClassMetadata[]
 }
 
 /**
@@ -205,6 +208,12 @@ export type ComponentConfig = {
    * This is used to transform the code template based on property values
    */
   variableMappings?: VariableMapping[]
+
+  /**
+   * Logical prop groupings for the editor UI.
+   * Each section represents a prop or variant slot with editable fields.
+   */
+  propSections?: ComponentPropSection[]
   
   /**
    * Component variants (e.g., 'default', 'outline', 'ghost')
@@ -224,6 +233,44 @@ export type ComponentConfig = {
     path: string
     content: string
   }>
+}
+
+export type PropEditableField = {
+  id: string
+  label: string
+  description?: string
+  elementId: string
+  propertyName: string
+  propertyPath: string
+  classGroup?: string
+  defaultValue?: any
+  usesCssVariable?: boolean
+  cssVariables?: string[]
+  dataAttributes?: string[]
+  isAnimation?: boolean
+}
+
+export type ComponentPropOption = {
+  value: string
+  label: string
+  classes: TailwindClassMetadata[]
+}
+
+export type ComponentPropSection = {
+  id: string
+  propName: string
+  label: string
+  description?: string
+  /**
+   * variant - matches class-variance prop
+   * size - size variants
+   * slot - content slot
+   * custom - fallback grouping
+   */
+  propType: 'variant' | 'size' | 'slot' | 'custom'
+  elements: string[]
+  fields: PropEditableField[]
+  options?: ComponentPropOption[]
 }
 
 

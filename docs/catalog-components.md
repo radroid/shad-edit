@@ -9,6 +9,7 @@ Catalog components live entirely in Convex (`catalogComponents` table). Each ent
 - `componentId` – kebab-case identifier (`floating-button`, `marketing-hero`).
 - `code` – JSX/TSX built from shadcn/ui primitives and Tailwind utilities.
 - `tailwindProperties` – array of editable tokens exposed in the ShadE-it editor. Each item matches the shape used in `convex/catalogComponents.addCatalogComponent` (name, label, type, defaultValue, options, category, description) and should map directly to Tailwind utilities or known CSS variables.
+- `propSections` – optional semantic groups (variants, sizes, header slots, etc.). When omitted, the importer derives sections automatically, but explicitly providing them yields better accordion titles and warnings.
 - `variants` – optional presets with `name`, `description`, and `properties` payloads that map to property names.
 - `dependencies` / `files` – any supporting imports or usage snippets.
 
@@ -21,7 +22,9 @@ Authoring tips:
 
 ### 2. Add or Update via Convex
 
-Use one of the following approaches:
+In most cases you can open the marketplace **Add Component** dialog, follow the shadcn/ui “Manual install” wizard, and paste the generated code. The importer (`importComponentFromCode`) AST-parses the snippet, infers prop sections, detects CVA variants, and persists the config straight into Convex—no scraping or command-line tooling required.
+
+For scripted migrations or CI, use one of the following approaches:
 
 ```ts
 import { useMutation } from 'convex/react'

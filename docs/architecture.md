@@ -22,7 +22,7 @@
 
 ### Data Flow
 
-1. **Catalog ingestion** – Admins or automation call `convex/catalogComponents.addCatalogComponent` with code, Tailwind property metadata, default variants, and dependencies.
+1. **Catalog ingestion** – Users now paste the shadcn/ui component code into the marketplace “Add component” dialog. The Convex action `importComponentFromCode` AST-parses the snippet, infers editable elements, prop sections, CVA-driven variants, and stores the entire config (including `propSections` + variant metadata) inside `componentConfigs`/`catalogComponents`. Manual URL scraping (Firecrawl) has been removed for reliability.
 2. **Marketplace browse** – `marketplace/index.tsx` loads catalog entries through `useCatalogComponents` and renders previews via `src/lib/component-renderer.tsx`.
 3. **Guest editing (optional)** – Selecting *Edit component* in the overlay spawns a cache-backed editing session:
    - Tailwind properties are extracted client-side via `property-extractor`.

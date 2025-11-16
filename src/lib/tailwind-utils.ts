@@ -2,6 +2,15 @@
  * Utility helpers for working with Tailwind utility classes.
  */
 
+export type TailwindClassMetadata = {
+  className: string
+  group?: string
+  usesCssVariable: boolean
+  cssVariables: string[]
+  dataAttributes: string[]
+  isAnimation: boolean
+}
+
 export function splitClassString(value: string | undefined | null): string[] {
   if (!value) return []
   if (Array.isArray(value)) {
@@ -41,6 +50,49 @@ function extractBaseGroup(base: string): string {
   const group = match ? match[1] : cleaned
 
   return negative ? `-${group}` : group
+}
+
+function extractCssVariables(value: string): string[] {
+  const matches = value.match(/var\((--[^)]+)\)/g)
+  if (!matches) return []
+  return matches.map((match) => {
+    const tokenMatch = match.match(/var\((--[^)]+)\)/)
+    return tokenMatch?.[1] ?? ''
+  }).filter(Boolean)
+}
+
+function extractDataAttributes(value: string): string[] {
+  const matches = value.match(/data-\[[^\]]+]/g)
+  if (!matches) return []
+  return Array.from(new Set(matches))
+}
+
+function isAnimationClass(value: string): boolean {
+  return (
+    value.startsWith('animate-') ||
+    value.startsWith('motion-') ||
+    value.startsWith('transition') ||
+    value.includes('duration-') ||
+    value.includes('ease-')
+  )
+}
+
+export function analyzeTailwindClass(className: string): TailwindClassMetadata {
+  const group = toClassGroup(className)
+  const cssVariables = extractCssVariables(className)
+  const dataAttributes = extractDataAttributes(className)
+  return {
+    className,
+    group,
+    usesCssVariable: cssVariables.length > 0,
+    cssVariables,
+    dataAttributes,
+    isAnimation: isAnimationClass(className),
+  }
+}
+
+export function analyzeTailwindClasses(classNames: string[]): TailwindClassMetadata[] {
+  return classNames.filter(Boolean).map((cls) => analyzeTailwindClass(cls))
 }
 
 export function normalizeTailwindValue(

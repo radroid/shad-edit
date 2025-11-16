@@ -46,6 +46,7 @@ function GuestEditPage() {
     resetToDefaults,
     clearGuestCache,
   } = useGuestEditor(componentId, config)
+  const [variantDrafts, setVariantDrafts] = useState(config?.variants || [])
 
   const elementOptions = useMemo(() => {
     return structure?.elements ?? []
@@ -58,6 +59,12 @@ function GuestEditPage() {
       structure.elements[0]
     )
   }, [structure, selectedElementId])
+
+  useEffect(() => {
+    setVariantDrafts(config?.variants || [])
+  }, [config])
+
+  const hasPropSections = Boolean(structure?.propSections && structure.propSections.length > 0)
 
   const handleCopyCode = async () => {
     if (componentCode) {
@@ -201,7 +208,18 @@ function GuestEditPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex-1 overflow-auto">
-                {structure && structure.elements.length > 0 ? (
+                {hasPropSections ? (
+                  <PropertyManager
+                    structure={structure}
+                    propertyValues={propertyValues}
+                    onPropertyChange={handlePropertyChange}
+                    variants={variantDrafts}
+                    selectedVariant={selectedVariant}
+                    onVariantChange={handleVariantChange}
+                    propSections={structure?.propSections}
+                    onVariantsChange={setVariantDrafts}
+                  />
+                ) : structure && structure.elements.length > 0 ? (
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -227,10 +245,13 @@ function GuestEditPage() {
                     </div>
                     {selectedElement ? (
                       <PropertyManager
+                        structure={structure}
                         selectedElement={selectedElement}
                         propertyValues={propertyValues}
                         onPropertyChange={handlePropertyChange}
-                        variants={config?.variants}
+                        variants={variantDrafts}
+                        propSections={structure?.propSections}
+                        onVariantsChange={setVariantDrafts}
                       />
                     ) : (
                       <p className="text-muted-foreground text-sm">

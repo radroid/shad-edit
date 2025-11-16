@@ -2,12 +2,16 @@
  * Property Extractor - Analyzes React component code and extracts editable properties
  */
 
-import type { ComponentConfig } from './component-config'
+import type {
+  ComponentConfig,
+  ComponentPropSection,
+} from './component-config'
 import {
   applyAttributeUpdate,
   applyContentUpdate,
   applyTailwindClassUpdate,
 } from './tailwind-modifier'
+import type { TailwindClassMetadata } from './tailwind-utils'
 
 export type PropertyType =
   | 'string'
@@ -48,6 +52,10 @@ export type PropertyDefinition = {
    * Attribute name when `apply` equals 'attribute'.
    */
   attributeName?: string
+  /**
+   * Metadata extracted from Tailwind class analysis.
+   */
+  classMetadata?: TailwindClassMetadata
 }
 
 export type ComponentElement = {
@@ -63,6 +71,7 @@ export type ComponentStructure = {
   name: string
   elements: ComponentElement[]
   globalProperties: PropertyDefinition[]
+  propSections?: ComponentPropSection[]
 }
 
 /**
@@ -163,6 +172,7 @@ export function extractPropertiesFromConfig(
       name: config.metadata.name,
       elements,
       globalProperties: config.globalProperties || [],
+      propSections: config.propSections || [],
     }
   }
   
@@ -308,6 +318,7 @@ export function extractPropertiesFromCode(
     name: componentName,
     elements,
     globalProperties,
+    propSections: config?.propSections || [],
   }
 }
 

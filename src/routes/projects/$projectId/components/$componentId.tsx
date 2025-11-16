@@ -49,6 +49,7 @@ function ComponentEditorPage() {
   const [selectedElementId, setSelectedElementId] = useState<string | undefined>()
   const [propertyValues, setPropertyValues] = useState<Record<string, any>>({})
   const [componentStructure, setComponentStructure] = useState<ComponentStructure | undefined>()
+  const [variantDrafts, setVariantDrafts] = useState(catalogComponent?.variants || [])
   const [componentCode, setComponentCode] = useState<string>('')
   const [selectedVariant, setSelectedVariant] = useState<string>('default')
   const [selectedSize, setSelectedSize] = useState<string>('default')
@@ -90,6 +91,7 @@ function ComponentEditorPage() {
       variableMappings: [],
       dependencies: catalogComponent.dependencies,
       files: catalogComponent.files,
+      propSections: catalogComponent.propSections,
     }
 
     // Extract structure using property extractor
@@ -172,6 +174,10 @@ function ComponentEditorPage() {
     const initialCode = generateCodeWithTheme(catalogComponent.code)
     setComponentCode(initialCode)
   }, [catalogComponent, projectComponent, selectedVariant])
+
+  useEffect(() => {
+    setVariantDrafts(catalogComponent?.variants || [])
+  }, [catalogComponent])
 
   // Initialize variant
   useEffect(() => {
@@ -287,24 +293,20 @@ function ComponentEditorPage() {
   // Handle variant change
   const handleVariantChange = async (variantName: string) => {
     setSelectedVariant(variantName)
-    const variant = catalogComponent?.variants?.find((v: any) => v.name === variantName)
-    if (variant?.properties) {
-      // Map variant properties to element properties
+    const variant = variantDrafts.find((v) => v.name === variantName)
+    if (!variant?.properties) return
+    
       const mappedValues: Record<string, any> = {}
       Object.entries(variant.properties).forEach(([key, value]) => {
-        componentStructure?.elements.forEach((el) => {
-          if (el.properties.some(p => p.name === key)) {
-            mappedValues[`${el.id}.${key}`] = value
-          }
+      mappedValues[key] = value
         })
-      })
+    
       setPropertyValues((prev) => ({ ...prev, ...mappedValues }))
       await updateComponentVariant({
         componentId: componentId as Id<'projectComponents'>,
         variant: variantName,
         properties: mappedValues,
       })
-    }
   }
 
   // Handle size change
@@ -407,16 +409,19 @@ function ComponentEditorPage() {
           {/* Right sidebar - Property manager */}
           <div className="w-80 shrink-0 overflow-hidden border-l border-border bg-card text-card-foreground">
             <PropertyManager
+            structure={componentStructure}
               selectedElement={selectedElement}
               propertyValues={propertyValues}
               onPropertyChange={handlePropertyChange}
-              variants={catalogComponent.variants || []}
+            variants={variantDrafts}
               selectedVariant={selectedVariant}
               onVariantChange={handleVariantChange}
               sizeOptions={sizeOptions}
               selectedSize={selectedSize}
               onSizeChange={handleSizeChange}
               onResetOverrides={handleResetOverrides}
+            propSections={componentStructure?.propSections}
+            onVariantsChange={setVariantDrafts}
             />
           </div>
         </div>

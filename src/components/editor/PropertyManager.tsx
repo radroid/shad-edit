@@ -21,20 +21,24 @@ import {
   PropertyDefinition,
   ComponentElement,
   getPropertyCategories,
+  type ComponentStructure,
 } from '@/lib/property-extractor'
+import type { ComponentPropSection } from '@/lib/component-config'
 import { Settings2, Box, RotateCcw } from 'lucide-react'
-import { HexColorPicker } from 'react-colorful'
-import { useState } from 'react'
+import { RgbaColorPicker } from 'react-colorful'
+import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 
 type Variant = {
   name: string
   displayName?: string
   properties?: Record<string, any>
+  description?: string
 }
 
 type PropertyManagerProps = {
   selectedElement?: ComponentElement
+  structure?: ComponentStructure
   propertyValues: Record<string, any>
   onPropertyChange: (propertyName: string, value: any) => void
   isForked?: boolean // Deprecated - advanced styles are now always available
@@ -46,10 +50,13 @@ type PropertyManagerProps = {
   onSizeChange?: (size: string) => void
   onResetOverrides?: (elementId: string) => void
   showAdvancedOverrides?: boolean
+  propSections?: ComponentPropSection[]
+  onVariantsChange?: (variants: Variant[]) => void
 }
 
 export default function PropertyManager({
   selectedElement,
+  structure,
   propertyValues,
   onPropertyChange,
   isForked = false, // Deprecated - kept for backward compatibility
@@ -61,8 +68,24 @@ export default function PropertyManager({
   onSizeChange,
   onResetOverrides,
   showAdvancedOverrides = true,
+  propSections,
+  onVariantsChange,
 }: PropertyManagerProps) {
   const [colorPickerOpen, setColorPickerOpen] = useState<string | null>(null)
+  const variantList = variants || []
+  const propertyLookup = useMemo(() => {
+    if (!structure) {
+      return new Map<string, { element: ComponentElement; property: PropertyDefinition }>()
+    }
+    const map = new Map<string, { element: ComponentElement; property: PropertyDefinition }>()
+    structure.elements.forEach((element) => {
+      element.properties.forEach((prop) => {
+        map.set(`${element.id}.${prop.name}`, { element, property: prop })
+      })
+    })
+    return map
+  }, [structure])
+  const hasPropSections = Boolean(propSections && propSections.length > 0)
   
   // Check if there are any advanced style overrides
   const hasOverrides = selectedElement ? [
@@ -79,7 +102,7 @@ export default function PropertyManager({
     const value = propertyValues[`${selectedElement.id}.${prop}`]
     return value !== undefined && value !== null && value !== ''
   }) : false
-  if (!selectedElement) {
+  if (!selectedElement && !hasPropSections) {
     return (
       <div className="flex flex-col h-full border-l">
         <div className="p-4 border-b">
@@ -101,9 +124,11 @@ export default function PropertyManager({
   }
 
   // Filter out variant and size properties since we have dedicated controls for them
-  const filteredProperties = selectedElement.properties.filter(
+  const filteredProperties = selectedElement
+    ? selectedElement.properties.filter(
     (prop) => prop.name !== 'variant' && prop.name !== 'size'
   )
+    : []
   
   const categories = getPropertyCategories(filteredProperties)
   const propertiesByCategory = categories.reduce(
@@ -120,8 +145,8 @@ export default function PropertyManager({
     (prop) => !prop.category
   )
 
-  const renderPropertyControl = (prop: PropertyDefinition) => {
-    const propertyKey = `${selectedElement.id}.${prop.name}`
+  const renderPropertyControl = (element: ComponentElement, prop: PropertyDefinition) => {
+    const propertyKey = `${element.id}.${prop.name}`
     const value = propertyValues[propertyKey] ?? prop.defaultValue
 
     switch (prop.type) {
@@ -147,11 +172,11 @@ export default function PropertyManager({
       case 'boolean':
         return (
           <div className="flex items-center justify-between">
-            <Label htmlFor={`${selectedElement.id}-${prop.name}`} className="text-sm cursor-pointer">
+            <Label htmlFor={`${element.id}-${prop.name}`} className="text-sm cursor-pointer">
               {prop.label}
             </Label>
             <Switch
-              id={`${selectedElement.id}-${prop.name}`}
+              id={`${element.id}-${prop.name}`}
               checked={value || false}
               onCheckedChange={(checked) =>
                 onPropertyChange(propertyKey, checked)
@@ -161,56 +186,76 @@ export default function PropertyManager({
         )
 
       case 'color': {
-        const fallbackColor = typeof prop.defaultValue === 'string' ? prop.defaultValue : '#000000'
-        const colorValue = value ?? fallbackColor
-        const colorString = typeof colorValue === 'string' ? colorValue : String(colorValue ?? '')
+        const fallback = typeof prop.defaultValue === 'string' ? prop.defaultValue : 'rgba(0,0,0,1)'
+        const raw = (value ?? fallback) as string
         const isTailwindUtility =
-          typeof colorString === 'string' &&
-          !colorString.startsWith('#') &&
-          !colorString.startsWith('rgb') &&
-          !colorString.startsWith('hsl')
+          typeof raw === 'string' &&
+          !raw.startsWith('#') &&
+          !raw.startsWith('rgb') &&
+          !raw.startsWith('hsl')
         const isColorPickerOpen = colorPickerOpen === propertyKey
 
+        // Tailwind token mode → keep simple textbox so users can type bg tokens
         if (isTailwindUtility) {
           return (
             <Input
               type="text"
-              value={colorString}
+              value={raw}
               onChange={(e) => onPropertyChange(propertyKey, e.target.value)}
               placeholder={prop.label}
             />
           )
         }
 
+        // Parse rgba string into react-colorful RGBA object
+        const toRgbaObj = (input: string) => {
+          // Accept hex, rgb(a), hsl(a); basic parser focusing on rgba()
+          const m = input.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([0-9.]+))?\)/i)
+          if (m) {
+            return {
+              r: Math.min(255, Number(m[1])),
+              g: Math.min(255, Number(m[2])),
+              b: Math.min(255, Number(m[3])),
+              a: m[4] !== undefined ? Math.max(0, Math.min(1, Number(m[4]))) : 1,
+            }
+          }
+          // Fallback to black
+          return { r: 0, g: 0, b: 0, a: 1 }
+        }
+
+        const fromRgbaObj = (c: { r: number; g: number; b: number; a?: number }) =>
+          `rgba(${Math.round(c.r)}, ${Math.round(c.g)}, ${Math.round(c.b)}, ${
+            c.a === undefined ? 1 : Number(c.a.toFixed(3))
+          })`
+
+        const rgba = toRgbaObj(raw)
+
         return (
-          <div className="flex gap-2 relative">
-            <div
-              className="h-9 w-16 rounded border cursor-pointer"
-              style={{ backgroundColor: colorString || '#000000' }}
+          <div className="relative">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="h-8 w-8 rounded-md border shadow-inner"
+                style={{ backgroundColor: fromRgbaObj(rgba) }}
               onClick={() => setColorPickerOpen(isColorPickerOpen ? null : propertyKey)}
+                aria-label="Open color picker"
+              />
+              <Input
+                type="text"
+                value={raw}
+                onChange={(e) => onPropertyChange(propertyKey, e.target.value)}
+                className="flex-1"
+                placeholder="rgba(0,0,0,1)"
             />
+            </div>
             {isColorPickerOpen && (
-              <div className="absolute z-10 top-12 left-0 p-4 bg-background border rounded-lg shadow-lg">
-                <HexColorPicker
-                  color={colorString || '#000000'}
-                  onChange={(color) => onPropertyChange(propertyKey, color)}
-                />
-                <Input
-                  type="text"
-                  value={colorString || ''}
-              onChange={(e) => onPropertyChange(propertyKey, e.target.value)}
-                  className="mt-2"
-                  placeholder={prop.label}
+              <div className="absolute z-10 mt-2 p-3 bg-background border rounded-md shadow-lg">
+                <RgbaColorPicker
+                  color={rgba}
+                  onChange={(c) => onPropertyChange(propertyKey, fromRgbaObj(c))}
             />
               </div>
             )}
-            <Input
-              type="text"
-              value={colorString || ''}
-              onChange={(e) => onPropertyChange(propertyKey, e.target.value)}
-              className="flex-1"
-              placeholder={prop.label}
-            />
           </div>
         )
       }
@@ -254,6 +299,282 @@ export default function PropertyManager({
     }
   }
 
+  const renderPropSections = () => {
+    if (!propSections || propSections.length === 0) return null
+
+    return (
+      <Accordion
+        type="multiple"
+        defaultValue={propSections.map((section) => section.id)}
+        className="space-y-2"
+      >
+        {propSections.map((section) => (
+          <AccordionItem key={section.id} value={section.id}>
+            <AccordionTrigger className="text-sm font-medium">
+              {section.label}
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="space-y-4 pt-2">
+                {section.description && (
+                  <p className="text-xs text-muted-foreground">{section.description}</p>
+                )}
+
+                {section.options && section.options.length > 0 && (
+                  <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                        {section.propType === 'variant' ? 'Variants' : 'Options'}
+                      </Label>
+                      {section.propType === 'variant' && onVariantChange && (
+                        <span className="text-xs text-muted-foreground">
+                          Apply a variant to preview instantly.
+                        </span>
+                      )}
+                    </div>
+                    <div className="space-y-3">
+                      {section.options.map((option) => (
+                        <div
+                          key={`${section.id}-${option.value}`}
+                          className="rounded-md border bg-background px-3 py-2 space-y-2"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div>
+                              <p className="text-sm font-medium">{option.label}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {option.classes.length} utility classes
+                              </p>
+                            </div>
+                            {section.propType === 'variant' && onVariantChange && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => onVariantChange(option.value)}
+                              >
+                                Use Variant
+                              </Button>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {option.classes.map((cls) => (
+                              <Badge
+                                key={`${option.value}-${cls.className}`}
+                                variant={cls.usesCssVariable ? 'destructive' : 'secondary'}
+                                className="text-[11px]"
+                              >
+                                {cls.className}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {section.fields.length === 0 && !section.options?.length && (
+                  <p className="text-sm text-muted-foreground">No editable fields detected.</p>
+                )}
+
+                {section.fields.map((field) => {
+                  const lookup = propertyLookup.get(field.propertyPath)
+                  if (!lookup) {
+                    return (
+                      <div key={field.id} className="rounded border border-dashed p-3">
+                        <p className="text-sm text-muted-foreground">
+                          {field.label} is not directly editable yet.
+                        </p>
+                      </div>
+                    )
+                  }
+
+                  return (
+                    <div key={field.id} className="space-y-2 rounded-md border bg-muted/20 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                          {field.label}
+                        </Label>
+                        {field.isAnimation && (
+                          <Badge variant="outline" className="text-[10px] uppercase">
+                            Animation
+                          </Badge>
+                        )}
+                      </div>
+                      {field.usesCssVariable && (
+                        <div className="rounded border border-amber-300 bg-amber-50 p-2 text-[11px] text-amber-900">
+                          Overrides will break the link to{' '}
+                          {field.cssVariables?.join(', ') || 'global tokens'} from global.css.
+                        </div>
+                      )}
+                      {field.dataAttributes && field.dataAttributes.length > 0 && (
+                        <p className="text-[11px] text-muted-foreground">
+                          Data states: {field.dataAttributes.join(', ')}
+                        </p>
+                      )}
+                      {renderPropertyControl(lookup.element, lookup.property)}
+                    </div>
+                  )
+                })}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        ))}
+      </Accordion>
+    )
+  }
+
+  const renderVariantManager = () => {
+    if (!variantList.length) return null
+    const canMutate = Boolean(onVariantsChange)
+
+    const duplicateVariant = (variant: Variant) => {
+      if (!onVariantsChange) return
+      const copyName = `${variant.name}-copy`
+      onVariantsChange([
+        ...variantList,
+        {
+          ...variant,
+          name: copyName,
+          displayName: `${variant.displayName || variant.name} Copy`,
+        },
+      ])
+    }
+
+    const removeVariant = (variant: Variant) => {
+      if (!onVariantsChange) return
+      onVariantsChange(variantList.filter((v) => v.name !== variant.name))
+    }
+
+    const updateVariantLabel = (variant: Variant, label: string) => {
+      if (!onVariantsChange) return
+      onVariantsChange(
+        variantList.map((v) =>
+          v.name === variant.name ? { ...v, displayName: label } : v
+        )
+      )
+    }
+
+    const addVariant = () => {
+      if (!onVariantsChange || variantList.length === 0) return
+      const idx = variantList.length + 1
+      const template = variantList[0]
+      onVariantsChange([
+        ...variantList,
+        {
+          ...template,
+          name: `variant-${idx}`,
+          displayName: `Variant ${idx}`,
+        },
+      ])
+    }
+
+    const captureVariant = (variant: Variant) => {
+      if (!onVariantsChange) return
+      const snapshot: Record<string, any> = {}
+      Object.entries(propertyValues).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          snapshot[key] = value
+        }
+      })
+      onVariantsChange(
+        variantList.map((v) =>
+          v.name === variant.name ? { ...v, properties: snapshot } : v
+        )
+      )
+    }
+
+    return (
+      <div className="space-y-3 rounded-lg border bg-muted/30 p-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium">Variant Manager</p>
+            <p className="text-xs text-muted-foreground">
+              Duplicate and tweak variants to explore new combinations.
+            </p>
+          </div>
+          <Button size="sm" variant="outline" onClick={addVariant} disabled={!canMutate}>
+            Add Variant
+          </Button>
+        </div>
+        <div className="space-y-2">
+          {variantList.map((variant) => (
+            <div key={variant.name} className="rounded-md border bg-background p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex-1 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">
+                      {variant.name}
+                    </Badge>
+                    <Input
+                      value={variant.displayName || variant.name}
+                      onChange={(e) => updateVariantLabel(variant, e.target.value)}
+                      disabled={!canMutate}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    {Object.keys(variant.properties ?? {}).length} overrides applied
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {onVariantChange && (
+                    <Button size="sm" onClick={() => onVariantChange(variant.name)}>
+                      Apply
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => captureVariant(variant)}
+                    disabled={!canMutate}
+                  >
+                    Capture
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => duplicateVariant(variant)}
+                    disabled={!canMutate}
+                  >
+                    Duplicate
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => removeVariant(variant)}
+                    disabled={!canMutate}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (hasPropSections) {
+    return (
+      <div className="flex flex-col h-full border-l">
+        <div className="p-4 border-b space-y-3">
+          <div className="flex items-center gap-2">
+            <Settings2 className="h-5 w-5" />
+            <h2 className="text-lg font-semibold">Component Props</h2>
+          </div>
+          {renderVariantManager()}
+        </div>
+        <ScrollArea className="flex-1">
+          <div className="p-4 space-y-4">{renderPropSections()}</div>
+        </ScrollArea>
+      </div>
+    )
+  }
+
+  if (!selectedElement) {
+    return null
+  }
+
   return (
     <div className="flex flex-col h-full border-l">
       <div className="p-4 border-b">
@@ -263,7 +584,7 @@ export default function PropertyManager({
         </div>
         
         {/* Variant Selector */}
-        {variants.length > 0 && (
+        {variantList.length > 0 && (
           <div className="space-y-2 mb-3">
             <Label className="text-xs">Variant</Label>
             <Select
@@ -274,7 +595,7 @@ export default function PropertyManager({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {variants.map((variant) => (
+                {variantList.map((variant) => (
                   <SelectItem key={variant.name} value={variant.name}>
                     {variant.displayName || variant.name}
                   </SelectItem>
@@ -335,7 +656,7 @@ export default function PropertyManager({
                             {prop.label}
                           </Label>
                         )}
-                        {renderPropertyControl(prop)}
+                        {renderPropertyControl(selectedElement, prop)}
                         {prop.description && (
                           <p className="text-xs text-muted-foreground">
                             {prop.description}
@@ -359,7 +680,7 @@ export default function PropertyManager({
                           {prop.label}
                         </Label>
                       )}
-                      {renderPropertyControl(prop)}
+                      {renderPropertyControl(selectedElement, prop)}
                       {prop.description && (
                         <p className="text-xs text-muted-foreground">
                           {prop.description}

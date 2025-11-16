@@ -10,11 +10,19 @@ import type * as t from '@babel/types'
 import type { NodePath } from '@babel/traverse'
 import type {
   ComponentConfig,
+  ComponentPropSection,
+  ComponentPropOption,
   EditableElement,
+  ComponentVariant,
   TailwindElementConfig,
 } from './component-config'
 import type { PropertyDefinition } from './property-extractor'
-import { toClassGroup } from './tailwind-utils'
+import {
+  analyzeTailwindClasses,
+  splitClassString,
+  toClassGroup,
+  type TailwindClassMetadata,
+} from './tailwind-utils'
 
 /**
  * Options for config generation
@@ -114,6 +122,13 @@ function generatePropertiesFromClasses(
 ): PropertyDefinition[] {
   const properties: PropertyDefinition[] = []
   const seen = new Set<string>()
+  const classMetadata = analyzeTailwindClasses(classes)
+  const metadataByGroup = new Map<string, TailwindClassMetadata>()
+  classMetadata.forEach((meta) => {
+    if (meta.group && !metadataByGroup.has(meta.group)) {
+      metadataByGroup.set(meta.group, meta)
+    }
+  })
   
   // Extract properties from classes
   for (const className of classes) {
@@ -130,6 +145,7 @@ function generatePropertiesFromClasses(
         classGroup: 'bg',
         classPrefix: 'bg-',
         category: 'Colors',
+        classMetadata: metadataByGroup.get('bg'),
       })
     }
     
@@ -146,6 +162,7 @@ function generatePropertiesFromClasses(
         classGroup: 'text',
         classPrefix: 'text-',
         category: 'Colors',
+        classMetadata: metadataByGroup.get('text'),
       })
     }
     
@@ -177,6 +194,9 @@ function generatePropertiesFromClasses(
           classGroup: className.match(/^p[tblrxy]?-/)?.[0]?.replace('-', '') || 'p',
           classPrefix: className.match(/^p[tblrxy]?-/)?.[0] || 'p-',
           category: 'Spacing',
+          classMetadata: metadataByGroup.get(
+            className.match(/^p[tblrxy]?-/)?.[0]?.replace('-', '') || 'p'
+          ),
         })
       }
     }
@@ -209,6 +229,9 @@ function generatePropertiesFromClasses(
           classGroup: className.match(/^m[tblrxy]?-/)?.[0]?.replace('-', '') || 'm',
           classPrefix: className.match(/^m[tblrxy]?-/)?.[0] || 'm-',
           category: 'Spacing',
+          classMetadata: metadataByGroup.get(
+            className.match(/^m[tblrxy]?-/)?.[0]?.replace('-', '') || 'm'
+          ),
         })
       }
     }
@@ -226,6 +249,7 @@ function generatePropertiesFromClasses(
         classGroup: 'rounded',
         classPrefix: 'rounded',
         category: 'Border',
+        classMetadata: metadataByGroup.get('rounded'),
       })
     }
     
@@ -252,6 +276,7 @@ function generatePropertiesFromClasses(
           { label: '3XL', value: 'text-3xl' },
           { label: '4XL', value: 'text-4xl' },
         ],
+        classMetadata: metadataByGroup.get('text'),
       })
     }
     
@@ -279,6 +304,7 @@ function generatePropertiesFromClasses(
           { label: 'Extra Bold', value: 'font-extrabold' },
           { label: 'Black', value: 'font-black' },
         ],
+        classMetadata: metadataByGroup.get('font'),
       })
     }
   }
@@ -296,6 +322,7 @@ function generatePropertiesFromClasses(
         classGroup: 'bg',
         classPrefix: 'bg-',
         category: 'Colors',
+        classMetadata: metadataByGroup.get('bg'),
       })
     }
     
@@ -309,11 +336,30 @@ function generatePropertiesFromClasses(
         classGroup: 'text',
         classPrefix: 'text-',
         category: 'Colors',
+        classMetadata: metadataByGroup.get('text'),
       })
     }
   }
   
   return properties
+}
+
+type CvaPropDefinition = {
+  name: string
+  options: Array<{
+    value: string
+    classes: string[]
+  }>
+}
+
+function toTitleCase(value: string): string {
+  return value
+    .replace(/[-_]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
 }
 
 /**
@@ -421,11 +467,25 @@ export function generateConfigFromCode(
   
   const editableElements: EditableElement[] = []
   const elementCounts = new Map<string, number>()
+  const cvaPropDefinitions: CvaPropDefinition[] = []
   
   // Traverse AST to find JSX elements
   // Handle both ESM and CJS exports
   const traverseFn = (traverse as any).default || traverse
   traverseFn(ast, {
+    CallExpression(path: NodePath<t.CallExpression>) {
+      const node = path.node
+      if (
+        node.callee &&
+        node.callee.type === 'Identifier' &&
+        node.callee.name === 'cva'
+      ) {
+        const parsed = parseCvaCall(node)
+        if (parsed.length > 0) {
+          cvaPropDefinitions.push(...parsed)
+        }
+      }
+    },
     JSXElement(path: NodePath<t.JSXElement>) {
       const node = path.node
       const openingElement = node.openingElement
@@ -560,12 +620,17 @@ export function generateConfigFromCode(
     })
   }
   
+  const propSections = buildPropSections(editableElements, cvaPropDefinitions)
+  const componentVariants = buildComponentVariants(editableElements, cvaPropDefinitions)
+  
   return {
     metadata,
     code,
     editableElements,
     properties: [], // Deprecated, but kept for backward compatibility
     globalProperties,
+    propSections,
+    variants: componentVariants,
   }
 }
 
@@ -579,6 +644,189 @@ export function generateConfigFromExisting(
   return generateConfigFromCode(existing.code, existing.metadata, {
     ...options,
     componentName: existing.metadata.name,
+  })
+}
+
+function parseCvaCall(node: t.CallExpression): CvaPropDefinition[] {
+  if (node.arguments.length < 2) return []
+  const optionsArg = node.arguments[1]
+  if (!optionsArg || optionsArg.type !== 'ObjectExpression') return []
+
+  const variantsProp = optionsArg.properties.find(
+    (prop): prop is t.ObjectProperty =>
+      prop.type === 'ObjectProperty' &&
+      ((prop.key.type === 'Identifier' && prop.key.name === 'variants') ||
+        (prop.key.type === 'StringLiteral' && prop.key.value === 'variants'))
+  )
+
+  if (!variantsProp) return []
+  if (variantsProp.value.type !== 'ObjectExpression') return []
+
+  const propDefs: CvaPropDefinition[] = []
+
+  variantsProp.value.properties.forEach((prop) => {
+    if (prop.type !== 'ObjectProperty') return
+    const key =
+      prop.key.type === 'Identifier'
+        ? prop.key.name
+        : prop.key.type === 'StringLiteral'
+          ? prop.key.value
+          : undefined
+    if (!key) return
+
+    if (prop.value.type !== 'ObjectExpression') return
+    const options: CvaPropDefinition['options'] = []
+    prop.value.properties.forEach((optProp) => {
+      if (optProp.type !== 'ObjectProperty') return
+      const optionKey =
+        optProp.key.type === 'Identifier'
+          ? optProp.key.name
+          : optProp.key.type === 'StringLiteral'
+            ? optProp.key.value
+            : undefined
+      if (!optionKey) return
+
+      const classes = extractTailwindClassesFromNode(optProp.value)
+      if (classes.length > 0) {
+        options.push({
+          value: optionKey,
+          classes,
+        })
+      }
+    })
+
+    if (options.length > 0) {
+      propDefs.push({
+        name: key,
+        options,
+      })
+    }
+  })
+
+  return propDefs
+}
+
+function extractTailwindClassesFromNode(
+  node: t.Node
+): string[] {
+  if (node.type === 'StringLiteral') {
+    return splitClassString(node.value)
+  }
+  if (node.type === 'TemplateLiteral') {
+    const combined = node.quasis.map((q) => q.value.raw).join('')
+    return splitClassString(combined)
+  }
+  if (node.type === 'ArrayExpression') {
+    return node.elements.flatMap((el) => (el ? extractTailwindClassesFromNode(el) : []))
+  }
+  if (node.type === 'BinaryExpression' && node.operator === '+') {
+    return [
+      ...extractTailwindClassesFromNode(node.left),
+      ...extractTailwindClassesFromNode(node.right),
+    ]
+  }
+  return []
+}
+
+function buildPropSections(
+  editableElements: EditableElement[],
+  cvaProps: CvaPropDefinition[]
+): ComponentPropSection[] {
+  const sections: ComponentPropSection[] = []
+
+  editableElements.forEach((element) => {
+    const fields = element.properties.map((prop) => ({
+      id: `${element.id}.${prop.name}`,
+      label: prop.label,
+      description: prop.description,
+      elementId: element.id,
+      propertyName: prop.name,
+      propertyPath: `${element.id}.${prop.name}`,
+      classGroup: prop.classGroup,
+      defaultValue: prop.defaultValue,
+      usesCssVariable:
+        typeof prop.defaultValue === 'string' && prop.defaultValue.includes('var(') ||
+        Boolean(prop.classMetadata?.usesCssVariable),
+      cssVariables: prop.classMetadata?.cssVariables,
+      dataAttributes: prop.classMetadata?.dataAttributes,
+      isAnimation: prop.classMetadata?.isAnimation,
+    }))
+
+    if (fields.length > 0) {
+      sections.push({
+        id: `section-${element.id}`,
+        propName: element.name,
+        label: element.name,
+        description: `Editable styles for ${element.name}`,
+        propType: 'custom',
+        elements: [element.id],
+        fields,
+      })
+    }
+  })
+
+  cvaProps.forEach((prop) => {
+    const options: ComponentPropOption[] = prop.options.map((option) => ({
+      value: option.value,
+      label: toTitleCase(option.value),
+      classes: analyzeTailwindClasses(option.classes),
+    }))
+
+    sections.push({
+      id: `cva-${prop.name}`,
+      propName: prop.name,
+      label: toTitleCase(prop.name),
+      description: `Prop discovered from class-variance definition`,
+      propType:
+        prop.name === 'variant'
+          ? 'variant'
+          : prop.name === 'size'
+            ? 'size'
+            : 'custom',
+      elements: editableElements.map((el) => el.id),
+      fields: [],
+      options,
+    })
+  })
+
+  return sections
+}
+
+function buildComponentVariants(
+  editableElements: EditableElement[],
+  cvaProps: CvaPropDefinition[]
+): ComponentVariant[] {
+  const variantProp = cvaProps.find((prop) => prop.name === 'variant')
+  if (!variantProp || editableElements.length === 0) {
+    return []
+  }
+
+  const targetElement = editableElements[0]
+  const groupToProperty = new Map<string, PropertyDefinition>()
+  targetElement.properties.forEach((prop) => {
+    if (prop.classGroup) {
+      groupToProperty.set(prop.classGroup, prop)
+    }
+  })
+
+  return variantProp.options.map((option) => {
+    const metadata = analyzeTailwindClasses(option.classes)
+    const overrides: Record<string, any> = {}
+
+    metadata.forEach((meta) => {
+      if (!meta.group) return
+      const property = groupToProperty.get(meta.group)
+      if (property) {
+        overrides[`${targetElement.id}.${property.name}`] = meta.className
+      }
+    })
+
+    return {
+      name: option.value,
+      displayName: toTitleCase(option.value),
+      properties: overrides,
+      classMetadata: metadata,
+    }
   })
 }
 

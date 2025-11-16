@@ -11,6 +11,8 @@
 import type * as catalogComponents from "../catalogComponents.js";
 import type * as componentConfigs from "../componentConfigs.js";
 import type * as components_ from "../components.js";
+import type * as importComponent from "../importComponent.js";
+import type * as importComponentMutations from "../importComponentMutations.js";
 import type * as projectComponents from "../projectComponents.js";
 import type * as projects from "../projects.js";
 import type * as seedComponentConfigs from "../seedComponentConfigs.js";
@@ -34,6 +36,8 @@ declare const fullApi: ApiFromModules<{
   catalogComponents: typeof catalogComponents;
   componentConfigs: typeof componentConfigs;
   components: typeof components_;
+  importComponent: typeof importComponent;
+  importComponentMutations: typeof importComponentMutations;
   projectComponents: typeof projectComponents;
   projects: typeof projects;
   seedComponentConfigs: typeof seedComponentConfigs;

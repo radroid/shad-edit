@@ -67,6 +67,7 @@ export default function ComponentOverlay({
   const { config, isLoading } = useCatalogComponent(componentId)
   const [selectedProjectId, setSelectedProjectId] = useState<string>('')
   const [activeTab, setActiveTab] = useState<string>('preview')
+  const [variantDrafts, setVariantDrafts] = useState(config?.variants || [])
   const isNavigatingRef = useRef(false)
   const {
     structure,
@@ -95,9 +96,14 @@ export default function ComponentOverlay({
     setActiveTab('preview')
   }, [componentId])
 
+  useEffect(() => {
+    setVariantDrafts(config?.variants || [])
+  }, [config])
+
   const elementOptions = useMemo(() => {
     return structure?.elements ?? []
   }, [structure])
+  const hasPropSections = Boolean(structure?.propSections && structure.propSections.length > 0)
 
   const selectedElement = useMemo(() => {
     if (!structure) return undefined
@@ -111,14 +117,14 @@ export default function ComponentOverlay({
   const selectedVariant = useMemo(() => {
     if (!selectedElement) return 'default'
     const variantKey = `${selectedElement.id}.variant`
-    return propertyValues[variantKey] ?? config?.variants?.[0]?.name ?? 'default'
-  }, [selectedElement, propertyValues, config])
+    return propertyValues[variantKey] ?? variantDrafts[0]?.name ?? 'default'
+  }, [selectedElement, propertyValues, variantDrafts])
 
   // Handle variant change - apply variant properties and save
   const handleVariantChange = useCallback((variantName: string) => {
-    if (!selectedElement || !config?.variants) return
+    if (!selectedElement || !variantDrafts.length) return
     
-    const variant = config.variants.find((v: any) => v.name === variantName)
+    const variant = variantDrafts.find((v) => v.name === variantName)
     if (!variant) return
 
     // Set the variant property
@@ -127,12 +133,11 @@ export default function ComponentOverlay({
 
     // Apply variant properties if they exist
     if (variant.properties) {
-      Object.entries(variant.properties).forEach(([propName, propValue]) => {
-        const propertyKey = `${selectedElement.id}.${propName}`
-        handlePropertyChange(propertyKey, propValue)
+      Object.entries(variant.properties).forEach(([propPath, propValue]) => {
+        handlePropertyChange(propPath, propValue)
       })
     }
-  }, [selectedElement, config, handlePropertyChange])
+  }, [selectedElement, variantDrafts, handlePropertyChange])
 
   const previewProps = useMemo(() => {
     if (!selectedElement) return {}
@@ -437,7 +442,19 @@ export default function ComponentOverlay({
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6 flex-1 min-h-0 overflow-auto">
-                  {structure && structure.elements.length > 0 ? (
+                  {hasPropSections ? (
+                    <PropertyManager
+                      structure={structure}
+                      propertyValues={propertyValues}
+                      onPropertyChange={handlePropertyChange}
+                      variants={variantDrafts}
+                      selectedVariant={selectedVariant}
+                      onVariantChange={handleVariantChange}
+                      showAdvancedOverrides={false}
+                      propSections={structure?.propSections}
+                      onVariantsChange={setVariantDrafts}
+                    />
+                  ) : structure && structure.elements.length > 0 ? (
                     <>
                       <div className="flex flex-wrap items-center gap-3">
                         <Label className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -463,13 +480,16 @@ export default function ComponentOverlay({
                       </div>
                       {selectedElement ? (
                         <PropertyManager
+                          structure={structure}
                           selectedElement={selectedElement}
                           propertyValues={propertyValues}
                           onPropertyChange={handlePropertyChange}
-                          variants={config?.variants || []}
+                          variants={variantDrafts}
                           selectedVariant={selectedVariant}
                           onVariantChange={handleVariantChange}
                           showAdvancedOverrides={false}
+                          propSections={structure?.propSections}
+                          onVariantsChange={setVariantDrafts}
                         />
                       ) : (
                         <p className="text-muted-foreground">

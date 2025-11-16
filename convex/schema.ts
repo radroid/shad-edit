@@ -34,6 +34,7 @@ export default defineSchema({
     
     // Global properties (e.g., layout properties)
     globalProperties: v.optional(v.array(v.any())),
+    propSections: v.optional(v.array(v.any())),
     
     // Default variant configurations
     variants: v.array(v.any()),
@@ -101,11 +102,13 @@ export default defineSchema({
     properties: v.array(v.any()),
     editableElements: v.optional(v.array(v.any())),
     globalProperties: v.optional(v.array(v.any())),
+    propSections: v.optional(v.array(v.any())),
     variableMappings: v.optional(v.array(v.any())),
     dependencies: v.optional(v.any()),
     files: v.optional(v.array(v.any())),
     variants: v.optional(v.array(v.any())),
     authorId: v.id('users'),
+    sourceUrl: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

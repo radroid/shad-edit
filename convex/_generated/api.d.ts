@@ -16,6 +16,7 @@ import type * as importComponentMutations from "../importComponentMutations.js";
 import type * as projectComponents from "../projectComponents.js";
 import type * as projects from "../projects.js";
 import type * as seedComponentConfigs from "../seedComponentConfigs.js";
+import type * as updatePreviewCode from "../updatePreviewCode.js";
 import type * as users from "../users.js";
 
 import type {
@@ -41,6 +42,7 @@ declare const fullApi: ApiFromModules<{
   projectComponents: typeof projectComponents;
   projects: typeof projects;
   seedComponentConfigs: typeof seedComponentConfigs;
+  updatePreviewCode: typeof updatePreviewCode;
   users: typeof users;
 }>;
 declare const fullApiWithMounts: typeof fullApi;

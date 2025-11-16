@@ -25,6 +25,9 @@ export default defineSchema({
     // Component code with Tailwind classes
     code: v.string(),
     
+    // Preview code for rendering the component in the preview area
+    previewCode: v.optional(v.string()),
+    
     // Extractable Tailwind properties (padding, margin, colors, etc.)
     // @deprecated Use editableElements instead
     tailwindProperties: v.array(v.any()),
@@ -80,6 +83,9 @@ export default defineSchema({
     
     // Modified code (if user customized beyond props)
     customCode: v.optional(v.string()),
+    
+    // Scoped CSS variables (for component-specific theming)
+    cssVariables: v.optional(v.any()),
     
     order: v.number(), // Display order in project
     

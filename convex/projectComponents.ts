@@ -8,6 +8,8 @@ export const addComponentToProject = mutation({
   args: {
     projectId: v.id('projects'),
     catalogComponentId: v.string(),
+    customCode: v.optional(v.string()),
+    cssVariables: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity()
@@ -62,6 +64,8 @@ export const addComponentToProject = mutation({
       selectedVariant: defaultVariant,
       variantProperties: defaultVariantProps,
       tailwindOverrides: {},
+      customCode: args.customCode,
+      cssVariables: args.cssVariables,
       order: maxOrder + 1,
       createdAt: now,
       updatedAt: now,

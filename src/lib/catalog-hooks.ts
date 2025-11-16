@@ -14,7 +14,7 @@ export function useCatalogComponents() {
   
   if (components === undefined) return { components: [], isLoading: true }
   
-  const formatted: Array<{ id: string; config: ComponentConfig }> = components.map((comp) => ({
+  const formatted: Array<{ id: string; config: ComponentConfig & { previewCode?: string; variants?: any[] } }> = components.map((comp) => ({
     id: comp.componentId,
     config: {
       metadata: {
@@ -26,6 +26,7 @@ export function useCatalogComponents() {
         version: comp.version,
       },
       code: comp.code,
+      previewCode: comp.previewCode,
       properties: comp.tailwindProperties || [],
       editableElements: comp.editableElements,
       globalProperties: comp.globalProperties,
@@ -34,7 +35,7 @@ export function useCatalogComponents() {
       dependencies: comp.dependencies,
       files: comp.files,
       variants: comp.variants || [],
-    } as ComponentConfig & { variants?: any[] },
+    },
   }))
   
   return { components: formatted, isLoading: false }
@@ -53,7 +54,7 @@ export function useCatalogComponent(componentId: string | undefined) {
   if (component === undefined) return { config: null, isLoading: true }
   if (!component) return { config: null, isLoading: false }
   
-  const config: ComponentConfig & { variants?: any[] } = {
+  const config: ComponentConfig & { previewCode?: string; variants?: any[] } = {
     metadata: {
       name: component.name,
       description: component.description || '',
@@ -63,6 +64,7 @@ export function useCatalogComponent(componentId: string | undefined) {
       version: component.version,
     },
     code: component.code,
+    previewCode: component.previewCode,
     properties: component.tailwindProperties || [],
     editableElements: component.editableElements,
     globalProperties: component.globalProperties,

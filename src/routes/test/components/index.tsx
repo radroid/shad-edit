@@ -413,7 +413,7 @@ function TestComponentsPage() {
             <div className="flex-1 overflow-auto px-6 pb-6">
               <div className="max-w-5xl mx-auto">
                 <div
-                  className={cn('rounded-lg border p-8 min-h-[300px]', previewTheme === 'dark' ? 'dark bg-slate-950 text-slate-50' : 'bg-background', scopedClassName)}
+                  className={cn('rounded-lg border p-8 min-h-[300px] bg-background text-foreground', previewTheme === 'dark' && 'dark', scopedClassName)}
                   style={scopedStyle}
                 >
                   {isLoading ? (

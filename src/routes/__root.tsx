@@ -60,7 +60,7 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
       <head>
         <HeadContent />
       </head>
-      <body>
+      <body className="flex flex-col h-screen overflow-hidden">
         <ClerkProvider publishableKey={(import.meta as any).env?.VITE_CLERK_PUBLISHABLE_KEY}>
           <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
             <Authenticated>
@@ -68,7 +68,9 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
             </Authenticated>
             <GuestEditMigration />
             <Header />
-            {children}
+            <main className="flex-1 overflow-hidden min-h-0 relative">
+              {children}
+            </main>
           </ConvexProviderWithClerk>
         </ClerkProvider>
         {(import.meta as any).env?.DEV && (

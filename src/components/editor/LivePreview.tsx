@@ -1,5 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
+import * as React from 'react'
 import * as LucideIcons from 'lucide-react'
+
+// Declare Babel type for CDN-loaded Babel
+declare global {
+  interface Window {
+    Babel?: {
+      transform: (code: string, options: any) => { code: string }
+    }
+  }
+}
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -13,6 +23,8 @@ import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, NavigationMenuTrigger } from '@/components/ui/navigation-menu'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { cn } from '@/lib/utils'
+import { cva, type VariantProps } from 'class-variance-authority'
 
 type LivePreviewProps = {
   previewCode: string
@@ -32,22 +44,62 @@ function ErrorFallback({ error }: { error: Error }) {
 }
 
 export default function LivePreview({ previewCode, componentCode, className }: LivePreviewProps) {
-  const [error, setError] = useState<Error | null>(null)
-  const [PreviewComponent, setPreviewComponent] = useState<React.ComponentType | null>(null)
+    const [error, setError] = useState<Error | null>(null)
+    const [PreviewComponent, setPreviewComponent] = useState<React.ComponentType | null>(null)
+    const [babelLoaded, setBabelLoaded] = useState(false)
+    const babelScriptRef = useRef<HTMLScriptElement | null>(null)
+
+    // Load Babel from CDN
+    useEffect(() => {
+      if (window.Babel) {
+        setBabelLoaded(true)
+        return
+      }
+
+      if (babelScriptRef.current) {
+        return // Already loading
+      }
+
+      const script = document.createElement('script')
+      script.src = 'https://unpkg.com/@babel/standalone@7.23.5/babel.min.js'
+      script.async = true
+      script.onload = () => {
+        setBabelLoaded(true)
+      }
+      script.onerror = () => {
+        setError(new Error('Failed to load Babel transpiler'))
+      }
+      babelScriptRef.current = script
+      document.head.appendChild(script)
+
+      return () => {
+        if (babelScriptRef.current && document.head.contains(babelScriptRef.current)) {
+          document.head.removeChild(babelScriptRef.current)
+        }
+      }
+    }, [])
 
   useEffect(() => {
+    if (!babelLoaded) {
+      return // Wait for Babel to load
+    }
+    
     if (!previewCode) {
       setPreviewComponent(null)
       return
     }
 
     try {
-      // Process preview code - remove imports
+      // Process preview code - remove imports and directives
       let processedPreviewCode = previewCode
-        .replace(/import\s+{[^}]*}\s+from\s+['"][^'"]+['"]\s*;?/g, '')
-        .replace(/import\s+\*\s+as\s+\w+\s+from\s+['"][^'"]+['"]\s*;?/g, '')
-        .replace(/import\s+\w+\s+from\s+['"][^'"]+['"]\s*;?/g, '')
-        .replace(/export\s+(default\s+)?function/g, 'function')
+        .replace(/['"]use client['"];?\s*/g, '') // Remove "use client" directive
+        .replace(/['"]use server['"];?\s*/g, '') // Remove "use server" directive
+        .replace(/import\s+{[^}]*}\s+from\s+['"][^'"]+['"]\s*;?\s*/g, '')
+        .replace(/import\s+\*\s+as\s+\w+\s+from\s+['"][^'"]+['"]\s*;?\s*/g, '')
+        .replace(/import\s+\w+\s+from\s+['"][^'"]+['"]\s*;?\s*/g, '')
+        .replace(/export\s+default\s+function/g, 'function')
+        .replace(/export\s+function/g, 'function')
+        .replace(/export\s+default\s+/g, '')
         .replace(/export\s+{[^}]+}/g, '')
         .trim()
 
@@ -55,17 +107,31 @@ export default function LivePreview({ previewCode, componentCode, className }: L
       let processedComponentCode = ''
       if (componentCode) {
         processedComponentCode = componentCode
-          .replace(/import\s+{[^}]*}\s+from\s+['"][^'"]+['"]\s*;?/g, '')
-          .replace(/import\s+\*\s+as\s+\w+\s+from\s+['"][^'"]+['"]\s*;?/g, '')
-          .replace(/import\s+\w+\s+from\s+['"][^'"]+['"]\s*;?/g, '')
-          .replace(/export\s+(default\s+)?/g, '')
+          .replace(/['"]use client['"];?\s*/g, '')
+          .replace(/['"]use server['"];?\s*/g, '')
+          .replace(/import\s+{[^}]*}\s+from\s+['"][^'"]+['"]\s*;?\s*/g, '')
+          .replace(/import\s+\*\s+as\s+\w+\s+from\s+['"][^'"]+['"]\s*;?\s*/g, '')
+          .replace(/import\s+\w+\s+from\s+['"][^'"]+['"]\s*;?\s*/g, '')
+          .replace(/export\s+default\s+function/g, 'function')
+          .replace(/export\s+function/g, 'function')
+          .replace(/export\s+default\s+/g, '')
+          .replace(/export\s+const\s+/g, 'const ')
+          .replace(/export\s+{[^}]+}/g, '')
           .trim()
       }
 
-      // Create scope with all components
+      // Create scope with all components and utilities
       const scope = {
-        React: require('react'),
+        React,
+        ...React,
+        useState: React.useState,
+        useEffect: React.useEffect,
+        useRef: React.useRef,
+        useMemo: React.useMemo,
+        useCallback: React.useCallback,
         ...LucideIcons,
+        cn,
+        cva,
         Button,
         Badge,
         Card,
@@ -117,10 +183,16 @@ export default function LivePreview({ previewCode, componentCode, className }: L
         throw new Error('Could not find component function in preview code')
       }
 
-      // Combine component code and preview code
+      // Combine component code (edited) with preview code
       const combinedCode = processedComponentCode 
         ? `${processedComponentCode}\n\n${processedPreviewCode}`
         : processedPreviewCode
+
+      // Transpile JSX to JavaScript using Babel
+      const transpiledCode = window.Babel!.transform(combinedCode, {
+        presets: ['react'],
+        filename: 'preview.tsx',
+      }).code
 
       // Create the component using Function constructor with scope
       const scopeKeys = Object.keys(scope)
@@ -129,7 +201,7 @@ export default function LivePreview({ previewCode, componentCode, className }: L
       const componentFactory = new Function(
         ...scopeKeys,
         `
-        ${combinedCode}
+        ${transpiledCode}
         return ${previewComponentName};
         `
       )
@@ -147,7 +219,15 @@ export default function LivePreview({ previewCode, componentCode, className }: L
       setError(err as Error)
       setPreviewComponent(null)
     }
-  }, [previewCode, componentCode])
+  }, [previewCode, componentCode, babelLoaded])
+
+  if (!babelLoaded) {
+    return (
+      <div className="text-center text-muted-foreground p-8">
+        <div className="animate-pulse">Loading JSX transpiler...</div>
+      </div>
+    )
+  }
 
   if (error) {
     return <ErrorFallback error={error} />

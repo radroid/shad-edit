@@ -96,7 +96,7 @@ export default function CodeEditor({
   }, [readOnly])
 
   return (
-    <div className="border rounded-lg overflow-hidden">
+    <div className="border rounded-lg overflow-hidden h-full w-full">
       <Editor
         height={height}
         language={language}

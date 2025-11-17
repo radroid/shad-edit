@@ -8,25 +8,75 @@ export type CSSVariables = Record<string, string>
  * Default shadcn/ui CSS variables
  */
 export const DEFAULT_CSS_VARIABLES: CSSVariables = {
-  '--background': 'oklch(1 0 0)',
-  '--foreground': 'oklch(0.145 0 0)',
-  '--card': 'oklch(1 0 0)',
-  '--card-foreground': 'oklch(0.145 0 0)',
-  '--popover': 'oklch(1 0 0)',
-  '--popover-foreground': 'oklch(0.145 0 0)',
-  '--primary': 'oklch(0.205 0 0)',
-  '--primary-foreground': 'oklch(0.985 0 0)',
-  '--secondary': 'oklch(0.97 0 0)',
-  '--secondary-foreground': 'oklch(0.205 0 0)',
-  '--muted': 'oklch(0.97 0 0)',
-  '--muted-foreground': 'oklch(0.556 0 0)',
-  '--accent': 'oklch(0.97 0 0)',
-  '--accent-foreground': 'oklch(0.205 0 0)',
-  '--destructive': 'oklch(0.577 0.245 27.325)',
-  '--border': 'oklch(0.922 0 0)',
-  '--input': 'oklch(0.922 0 0)',
-  '--ring': 'oklch(0.708 0 0)',
+  // Base colors
+  '--background': 'hsl(223.8136 -172.5242% 100.0000%)',
+  '--foreground': 'hsl(223.8136 0.0000% 3.9388%)',
+  '--card': 'hsl(223.8136 -172.5242% 100.0000%)',
+  '--card-foreground': 'hsl(223.8136 0.0000% 3.9388%)',
+  '--popover': 'hsl(223.8136 -172.5242% 100.0000%)',
+  '--popover-foreground': 'hsl(223.8136 0.0000% 3.9388%)',
+  '--primary': 'hsl(223.8136 0.0000% 9.0527%)',
+  '--primary-foreground': 'hsl(223.8136 0.0004% 98.0256%)',
+  '--secondary': 'hsl(223.8136 0.0002% 96.0587%)',
+  '--secondary-foreground': 'hsl(223.8136 0.0000% 9.0527%)',
+  '--muted': 'hsl(223.8136 0.0002% 96.0587%)',
+  '--muted-foreground': 'hsl(223.8136 0.0000% 45.1519%)',
+  '--accent': 'hsl(223.8136 0.0002% 96.0587%)',
+  '--accent-foreground': 'hsl(223.8136 0.0000% 9.0527%)',
+  '--destructive': 'hsl(351.7303 123.6748% 40.5257%)',
+  '--destructive-foreground': 'hsl(223.8136 -172.5242% 100.0000%)',
+  '--border': 'hsl(223.8136 0.0001% 89.8161%)',
+  '--input': 'hsl(223.8136 0.0001% 89.8161%)',
+  '--ring': 'hsl(223.8136 0.0000% 63.0163%)',
+  
+  // Chart colors
+  '--chart-1': 'hsl(211.7880 101.9718% 78.6759%)',
+  '--chart-2': 'hsl(217.4076 91.3672% 59.5787%)',
+  '--chart-3': 'hsl(221.4336 86.3731% 54.0624%)',
+  '--chart-4': 'hsl(223.6587 78.7180% 47.8635%)',
+  '--chart-5': 'hsl(226.5426 70.0108% 39.9224%)',
+  
+  // Sidebar colors
+  '--sidebar': 'hsl(223.8136 0.0004% 98.0256%)',
+  '--sidebar-foreground': 'hsl(223.8136 0.0000% 3.9388%)',
+  '--sidebar-primary': 'hsl(223.8136 0.0000% 9.0527%)',
+  '--sidebar-primary-foreground': 'hsl(223.8136 0.0004% 98.0256%)',
+  '--sidebar-accent': 'hsl(223.8136 0.0002% 96.0587%)',
+  '--sidebar-accent-foreground': 'hsl(223.8136 0.0000% 9.0527%)',
+  '--sidebar-border': 'hsl(223.8136 0.0001% 89.8161%)',
+  '--sidebar-ring': 'hsl(223.8136 0.0000% 63.0163%)',
+  
+  // Fonts
+  '--font-sans': 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, \'Helvetica Neue\', Arial, \'Noto Sans\', sans-serif, \'Apple Color Emoji\', \'Segoe UI Emoji\', \'Segoe UI Symbol\', \'Noto Color Emoji\'',
+  '--font-serif': 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif',
+  '--font-mono': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+  
+  // Border radius
   '--radius': '0.625rem',
+  
+  // Shadow properties
+  '--shadow-x': '0',
+  '--shadow-y': '1px',
+  '--shadow-blur': '3px',
+  '--shadow-spread': '0px',
+  '--shadow-opacity': '0.1',
+  '--shadow-color': 'oklch(0 0 0)',
+  
+  // Shadow presets
+  '--shadow-2xs': '0 1px 3px 0px hsl(0 0% 0% / 0.05)',
+  '--shadow-xs': '0 1px 3px 0px hsl(0 0% 0% / 0.05)',
+  '--shadow-sm': '0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10)',
+  '--shadow': '0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10)',
+  '--shadow-md': '0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 2px 4px -1px hsl(0 0% 0% / 0.10)',
+  '--shadow-lg': '0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 4px 6px -1px hsl(0 0% 0% / 0.10)',
+  '--shadow-xl': '0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 8px 10px -1px hsl(0 0% 0% / 0.10)',
+  '--shadow-2xl': '0 1px 3px 0px hsl(0 0% 0% / 0.25)',
+  
+  // Typography
+  '--tracking-normal': '0em',
+  
+  // Spacing
+  '--spacing': '0.25rem',
 }
 
 /**
@@ -171,14 +221,70 @@ export const CSS_VARIABLE_CATEGORIES = {
       '--accent',
       '--accent-foreground',
       '--destructive',
+      '--destructive-foreground',
       '--border',
       '--input',
       '--ring',
     ],
   },
+  charts: {
+    label: 'Chart Colors',
+    variables: [
+      '--chart-1',
+      '--chart-2',
+      '--chart-3',
+      '--chart-4',
+      '--chart-5',
+    ],
+  },
+  sidebar: {
+    label: 'Sidebar',
+    variables: [
+      '--sidebar',
+      '--sidebar-foreground',
+      '--sidebar-primary',
+      '--sidebar-primary-foreground',
+      '--sidebar-accent',
+      '--sidebar-accent-foreground',
+      '--sidebar-border',
+      '--sidebar-ring',
+    ],
+  },
+  typography: {
+    label: 'Typography',
+    variables: [
+      '--font-sans',
+      '--font-serif',
+      '--font-mono',
+      '--tracking-normal',
+    ],
+  },
   radius: {
     label: 'Border Radius',
     variables: ['--radius'],
+  },
+  shadows: {
+    label: 'Shadows',
+    variables: [
+      '--shadow-x',
+      '--shadow-y',
+      '--shadow-blur',
+      '--shadow-spread',
+      '--shadow-opacity',
+      '--shadow-color',
+      '--shadow-2xs',
+      '--shadow-xs',
+      '--shadow-sm',
+      '--shadow',
+      '--shadow-md',
+      '--shadow-lg',
+      '--shadow-xl',
+      '--shadow-2xl',
+    ],
+  },
+  spacing: {
+    label: 'Spacing',
+    variables: ['--spacing'],
   },
 } as const
 

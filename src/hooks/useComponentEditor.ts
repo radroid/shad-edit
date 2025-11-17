@@ -61,12 +61,14 @@ export function useComponentEditor(componentId?: string) {
       const cache = loadFromCache(componentId)
       
       if (cache) {
+        console.log('Loading from cache:', componentId, cache.code?.substring(0, 50))
         setCode(cache.code)
         setCssVariables(cache.cssVariables)
         setPropertyValues(cache.propertyValues)
         setIsDirty(true)
       } else {
         // Initialize with config defaults
+        console.log('Loading from config:', componentId, config.code?.substring(0, 50))
         setCode(config.code || '')
         setCssVariables(DEFAULT_CSS_VARIABLES)
         setPropertyValues({})

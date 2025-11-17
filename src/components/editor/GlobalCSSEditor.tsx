@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { RotateCcw } from 'lucide-react'
+import { RotateCcw, Copy, Check } from 'lucide-react'
 import {
   CSSVariables,
   CSS_VARIABLE_CATEGORIES,
@@ -12,10 +12,188 @@ import {
   isValidCSSValue,
 } from '@/lib/scoped-css'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import FontSelector from './FontSelector'
+import { parseFontFamily, loadGoogleFont } from '@/lib/google-fonts'
 
 type GlobalCSSEditorProps = {
   variables: CSSVariables
   onChange: (variables: CSSVariables) => void
+}
+
+// Color conversion utilities
+type RGB = { r: number; g: number; b: number }
+
+// Parse different color formats to RGB
+function parseColor(color: string): RGB | null {
+  if (!color) return null
+  
+  // HEX format
+  const hexMatch = color.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i)
+  if (hexMatch) {
+    return {
+      r: parseInt(hexMatch[1], 16),
+      g: parseInt(hexMatch[2], 16),
+      b: parseInt(hexMatch[3], 16)
+    }
+  }
+  
+  // RGB format (supports both comma and space separated)
+  const rgbMatch = color.match(/rgb\((\d+)[,\s]+(\d+)[,\s]+(\d+)\)/)
+  if (rgbMatch) {
+    return {
+      r: parseInt(rgbMatch[1]),
+      g: parseInt(rgbMatch[2]),
+      b: parseInt(rgbMatch[3])
+    }
+  }
+  
+  // HSL format (supports decimals and negative values)
+  const hslMatch = color.match(/hsl\(([-\d.]+)\s+([-\d.]+)%?\s+([-\d.]+)%?\)/)
+  if (hslMatch) {
+    const h = parseFloat(hslMatch[1]) / 360
+    const s = parseFloat(hslMatch[2]) / 100
+    const l = parseFloat(hslMatch[3]) / 100
+    return hslToRgb(h, s, l)
+  }
+  
+  // OKLCH format (simplified parsing)
+  const oklchMatch = color.match(/oklch\(([\d.]+)\s+([\d.]+)\s+([\d.]+)\)/)
+  if (oklchMatch) {
+    const lightness = parseFloat(oklchMatch[1])
+    const chroma = parseFloat(oklchMatch[2])
+    const hue = parseFloat(oklchMatch[3])
+    // Convert oklch back to hsl then to rgb (simplified)
+    const h = hue / 360
+    const s = chroma / 0.4
+    const l = lightness
+    return hslToRgb(h, s, l)
+  }
+  
+  return null
+}
+
+function hslToRgb(h: number, s: number, l: number): RGB {
+  let r, g, b
+  
+  if (s === 0) {
+    r = g = b = l
+  } else {
+    const hue2rgb = (p: number, q: number, t: number) => {
+      if (t < 0) t += 1
+      if (t > 1) t -= 1
+      if (t < 1/6) return p + (q - p) * 6 * t
+      if (t < 1/2) return q
+      if (t < 2/3) return p + (q - p) * (2/3 - t) * 6
+      return p
+    }
+    
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s
+    const p = 2 * l - q
+    r = hue2rgb(p, q, h + 1/3)
+    g = hue2rgb(p, q, h)
+    b = hue2rgb(p, q, h - 1/3)
+  }
+  
+  return {
+    r: Math.round(r * 255),
+    g: Math.round(g * 255),
+    b: Math.round(b * 255)
+  }
+}
+
+function rgbToHex(rgb: RGB): string {
+  const toHex = (n: number) => {
+    const hex = Math.max(0, Math.min(255, Math.round(n))).toString(16)
+    return hex.length === 1 ? '0' + hex : hex
+  }
+  return `#${toHex(rgb.r)}${toHex(rgb.g)}${toHex(rgb.b)}`
+}
+
+function rgbToHsl(rgb: RGB): string {
+  const r = rgb.r / 255
+  const g = rgb.g / 255
+  const b = rgb.b / 255
+  
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  let h = 0, s = 0, l = (max + min) / 2
+  
+  if (max !== min) {
+    const d = max - min
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+    
+    switch (max) {
+      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break
+      case g: h = ((b - r) / d + 2) / 6; break
+      case b: h = ((r - g) / d + 4) / 6; break
+    }
+  }
+  
+  return `hsl(${Math.round(h * 360)}, ${Math.round(s * 100)}%, ${Math.round(l * 100)}%)`
+}
+
+function rgbToOklch(rgb: RGB): string {
+  // Simplified conversion - convert to HSL first
+  const r = rgb.r / 255
+  const g = rgb.g / 255
+  const b = rgb.b / 255
+  
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  let h = 0, s = 0, l = (max + min) / 2
+  
+  if (max !== min) {
+    const d = max - min
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+    
+    switch (max) {
+      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break
+      case g: h = ((b - r) / d + 2) / 6; break
+      case b: h = ((r - g) / d + 4) / 6; break
+    }
+  }
+  
+  const lightness = l
+  const chroma = s * 0.4
+  const hue = Math.round(h * 360)
+  
+  return `oklch(${lightness.toFixed(3)} ${chroma.toFixed(3)} ${hue})`
+}
+
+function convertColor(color: string, toFormat: 'hex' | 'rgb' | 'hsl' | 'oklch'): string {
+  const rgb = parseColor(color)
+  if (!rgb) return color
+  
+  switch (toFormat) {
+    case 'hex': return rgbToHex(rgb)
+    case 'rgb': return `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`
+    case 'hsl': return rgbToHsl(rgb)
+    case 'oklch': return rgbToOklch(rgb)
+    default: return color
+  }
+}
+
+// Helper to check if a value is a color
+function isColorValue(value: string): boolean {
+  if (!value) return false
+  return value.startsWith('#') || 
+         value.includes('rgb') || 
+         value.includes('hsl') || 
+         value.includes('oklch')
+}
+
+// Helper to check if a variable is a font variable
+function isFontVariable(varName: string): boolean {
+  return varName.includes('font')
+}
+
+// Get font category for a font variable
+function getFontCategory(varName: string): 'sans-serif' | 'serif' | 'monospace' | undefined {
+  if (varName.includes('sans')) return 'sans-serif'
+  if (varName.includes('serif') && !varName.includes('sans')) return 'serif'
+  if (varName.includes('mono')) return 'monospace'
+  return undefined
 }
 
 export default function GlobalCSSEditor({
@@ -23,6 +201,20 @@ export default function GlobalCSSEditor({
   onChange,
 }: GlobalCSSEditorProps) {
   const [editMode, setEditMode] = useState<'visual' | 'code'>('visual')
+  const [colorFormat, setColorFormat] = useState<'hex' | 'rgb' | 'hsl' | 'oklch'>('oklch')
+  const [isCopied, setIsCopied] = useState(false)
+
+  // Preload fonts when variables change
+  useEffect(() => {
+    Object.entries(variables).forEach(([varName, value]) => {
+      if (isFontVariable(varName) && value) {
+        const font = parseFontFamily(value)
+        if (font && font.name !== 'System UI') {
+          loadGoogleFont(font.name)
+        }
+      }
+    })
+  }, [variables])
 
   const handleVariableChange = (name: string, value: string) => {
     const formattedName = formatCSSVariableName(name)
@@ -49,6 +241,18 @@ export default function GlobalCSSEditor({
 
   const handleResetAll = () => {
     onChange(DEFAULT_CSS_VARIABLES)
+  }
+
+  const handleCopy = () => {
+    const cssCode = generateCodeView()
+    navigator.clipboard.writeText(cssCode).then(() => {
+      setIsCopied(true)
+      setTimeout(() => {
+        setIsCopied(false)
+      }, 5000)
+    }).catch(err => {
+      console.error('Failed to copy:', err)
+    })
   }
 
   const handleCodeChange = (code: string) => {
@@ -95,15 +299,45 @@ export default function GlobalCSSEditor({
         </p>
       </div>
 
-      <Tabs value={editMode} onValueChange={(v: any) => setEditMode(v)} className="flex-1 flex flex-col">
-        <TabsList className="mx-4 mt-4">
-          <TabsTrigger value="visual">Visual</TabsTrigger>
-          <TabsTrigger value="code">Code</TabsTrigger>
-        </TabsList>
+      <Tabs value={editMode} onValueChange={(v: any) => setEditMode(v)} className="flex-1 flex flex-col min-h-0">
+        <div className="mx-4 mt-4 flex items-center justify-between gap-3 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <TabsList>
+              <TabsTrigger value="visual">Visual</TabsTrigger>
+              <TabsTrigger value="code">Code</TabsTrigger>
+            </TabsList>
+            
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-9 w-9"
+              onClick={handleCopy}
+              title={isCopied ? "Copied!" : "Copy CSS variables"}
+            >
+              {isCopied ? (
+                <Check className="h-4 w-4 text-green-500" />
+              ) : (
+                <Copy className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+          
+          <Select value={colorFormat} onValueChange={(v: any) => setColorFormat(v)}>
+            <SelectTrigger className="w-[120px] h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="oklch">OKLCH</SelectItem>
+              <SelectItem value="hex">HEX</SelectItem>
+              <SelectItem value="rgb">RGB</SelectItem>
+              <SelectItem value="hsl">HSL</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-        <TabsContent value="visual" className="flex-1 m-0 overflow-hidden">
-          <ScrollArea className="h-full">
-            <div className="p-4 space-y-6">
+        <TabsContent value="visual" className="flex-1 m-0 overflow-hidden min-h-0 flex flex-col">
+          <ScrollArea className="flex-1 min-h-0">
+            <div className="p-4 space-y-6 pb-10">
               {Object.entries(CSS_VARIABLE_CATEGORIES).map(([key, category]) => (
                 <div key={key} className="space-y-3">
                   <h4 className="text-sm font-medium text-muted-foreground">
@@ -125,7 +359,7 @@ export default function GlobalCSSEditor({
                         </Button>
                       </div>
                       <div className="flex items-center gap-2">
-                        {key === 'colors' && (
+                        {isColorValue(variables[varName] || DEFAULT_CSS_VARIABLES[varName] || '') && (
                           <div
                             className="w-8 h-8 rounded border shrink-0"
                             style={{
@@ -133,15 +367,31 @@ export default function GlobalCSSEditor({
                             }}
                           />
                         )}
-                        <Input
-                          id={varName}
-                          value={variables[varName] || DEFAULT_CSS_VARIABLES[varName] || ''}
-                          onChange={(e) =>
-                            handleVariableChange(varName, e.target.value)
-                          }
-                          className="text-xs font-mono"
-                          placeholder={DEFAULT_CSS_VARIABLES[varName] || ''}
-                        />
+                        {isFontVariable(varName) ? (
+                          <FontSelector
+                            value={variables[varName] || DEFAULT_CSS_VARIABLES[varName] || ''}
+                            onChange={(value) => handleVariableChange(varName, value)}
+                            category={getFontCategory(varName)}
+                            placeholder={DEFAULT_CSS_VARIABLES[varName] || 'Select a font'}
+                          />
+                        ) : (
+                          <Input
+                            id={varName}
+                            value={
+                              isColorValue(variables[varName] || DEFAULT_CSS_VARIABLES[varName] || '')
+                                ? convertColor(
+                                    variables[varName] || DEFAULT_CSS_VARIABLES[varName] || '',
+                                    colorFormat
+                                  )
+                                : variables[varName] || DEFAULT_CSS_VARIABLES[varName] || ''
+                            }
+                            onChange={(e) =>
+                              handleVariableChange(varName, e.target.value)
+                            }
+                            className="text-xs font-mono"
+                            placeholder={DEFAULT_CSS_VARIABLES[varName] || ''}
+                          />
+                        )}
                       </div>
                     </div>
                   ))}
@@ -151,8 +401,8 @@ export default function GlobalCSSEditor({
           </ScrollArea>
         </TabsContent>
 
-        <TabsContent value="code" className="flex-1 m-0 overflow-hidden">
-          <div className="h-full p-4">
+        <TabsContent value="code" className="flex-1 m-0 overflow-hidden min-h-0 flex flex-col">
+          <div className="flex-1 min-h-0 p-4">
             <textarea
               value={generateCodeView()}
               onChange={(e) => handleCodeChange(e.target.value)}

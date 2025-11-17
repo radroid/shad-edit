@@ -1,0 +1,16 @@
+# Ignore generated files to prevent watch loops
+_generated/
+*.gen.ts
+routeTree.gen.ts
+
+# Build outputs
+node_modules/
+dist/
+.output/
+.vinxi/
+.git/
+
+# Temporary files
+*.log
+.DS_Store
+

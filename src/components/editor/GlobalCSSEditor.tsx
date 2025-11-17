@@ -3,11 +3,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { RotateCcw, Copy, Check } from 'lucide-react'
+import { RotateCcw, Copy, Check, Sun, Moon } from 'lucide-react'
 import {
   CSSVariables,
   CSS_VARIABLE_CATEGORIES,
   DEFAULT_CSS_VARIABLES,
+  DEFAULT_CSS_VARIABLES_DARK,
   formatCSSVariableName,
   isValidCSSValue,
 } from '@/lib/scoped-css'
@@ -19,6 +20,8 @@ import { parseFontFamily, loadGoogleFont } from '@/lib/google-fonts'
 type GlobalCSSEditorProps = {
   variables: CSSVariables
   onChange: (variables: CSSVariables) => void
+  theme: 'light' | 'dark'
+  onThemeChange: (theme: 'light' | 'dark') => void
 }
 
 // Color conversion utilities
@@ -199,10 +202,35 @@ function getFontCategory(varName: string): 'sans-serif' | 'serif' | 'monospace' 
 export default function GlobalCSSEditor({
   variables,
   onChange,
+  theme,
+  onThemeChange,
 }: GlobalCSSEditorProps) {
   const [editMode, setEditMode] = useState<'visual' | 'code'>('visual')
   const [colorFormat, setColorFormat] = useState<'hex' | 'rgb' | 'hsl' | 'oklch'>('oklch')
   const [isCopied, setIsCopied] = useState(false)
+  
+  // Get current defaults based on theme
+  const currentDefaults = theme === 'dark' ? DEFAULT_CSS_VARIABLES_DARK : DEFAULT_CSS_VARIABLES
+
+  // Update variables when theme changes
+  useEffect(() => {
+    // When theme changes, update all color/sidebar variables to use the new theme's defaults
+    const updatedVariables: CSSVariables = { ...variables }
+    let hasChanges = false
+    
+    Object.keys(currentDefaults).forEach((key) => {
+      // Only update color-related variables (not fonts, radius, shadows, etc.)
+      const isColorVar = isColorValue(currentDefaults[key])
+      if (isColorVar) {
+        updatedVariables[key] = currentDefaults[key]
+        hasChanges = true
+      }
+    })
+    
+    if (hasChanges) {
+      onChange(updatedVariables)
+    }
+  }, [theme]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Preload fonts when variables change
   useEffect(() => {
@@ -229,7 +257,7 @@ export default function GlobalCSSEditor({
 
   const handleReset = (name: string) => {
     const formattedName = formatCSSVariableName(name)
-    const defaultValue = DEFAULT_CSS_VARIABLES[formattedName]
+    const defaultValue = currentDefaults[formattedName]
     
     if (defaultValue) {
       onChange({
@@ -240,7 +268,7 @@ export default function GlobalCSSEditor({
   }
 
   const handleResetAll = () => {
-    onChange(DEFAULT_CSS_VARIABLES)
+    onChange(currentDefaults)
   }
 
   const handleCopy = () => {
@@ -340,9 +368,26 @@ export default function GlobalCSSEditor({
             <div className="p-4 space-y-6 pb-10">
               {Object.entries(CSS_VARIABLE_CATEGORIES).map(([key, category]) => (
                 <div key={key} className="space-y-3">
-                  <h4 className="text-sm font-medium text-muted-foreground">
-                    {category.label}
-                  </h4>
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-medium text-muted-foreground">
+                      {category.label}
+                    </h4>
+                    {key === 'colors' && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => onThemeChange(theme === 'light' ? 'dark' : 'light')}
+                        title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode colors`}
+                      >
+                        {theme === 'light' ? (
+                          <Moon className="h-4 w-4" />
+                        ) : (
+                          <Sun className="h-4 w-4" />
+                        )}
+                      </Button>
+                    )}
+                  </div>
                   {category.variables.map((varName) => (
                     <div key={varName} className="space-y-2">
                       <div className="flex items-center justify-between">
@@ -359,37 +404,37 @@ export default function GlobalCSSEditor({
                         </Button>
                       </div>
                       <div className="flex items-center gap-2">
-                        {isColorValue(variables[varName] || DEFAULT_CSS_VARIABLES[varName] || '') && (
+                        {isColorValue(variables[varName] || currentDefaults[varName] || '') && (
                           <div
                             className="w-8 h-8 rounded border shrink-0"
                             style={{
-                              backgroundColor: variables[varName] || DEFAULT_CSS_VARIABLES[varName],
+                              backgroundColor: variables[varName] || currentDefaults[varName],
                             }}
                           />
                         )}
                         {isFontVariable(varName) ? (
                           <FontSelector
-                            value={variables[varName] || DEFAULT_CSS_VARIABLES[varName] || ''}
+                            value={variables[varName] || currentDefaults[varName] || ''}
                             onChange={(value) => handleVariableChange(varName, value)}
                             category={getFontCategory(varName)}
-                            placeholder={DEFAULT_CSS_VARIABLES[varName] || 'Select a font'}
+                            placeholder={currentDefaults[varName] || 'Select a font'}
                           />
                         ) : (
                           <Input
                             id={varName}
                             value={
-                              isColorValue(variables[varName] || DEFAULT_CSS_VARIABLES[varName] || '')
+                              isColorValue(variables[varName] || currentDefaults[varName] || '')
                                 ? convertColor(
-                                    variables[varName] || DEFAULT_CSS_VARIABLES[varName] || '',
+                                    variables[varName] || currentDefaults[varName] || '',
                                     colorFormat
                                   )
-                                : variables[varName] || DEFAULT_CSS_VARIABLES[varName] || ''
+                                : variables[varName] || currentDefaults[varName] || ''
                             }
                             onChange={(e) =>
                               handleVariableChange(varName, e.target.value)
                             }
                             className="text-xs font-mono"
-                            placeholder={DEFAULT_CSS_VARIABLES[varName] || ''}
+                            placeholder={currentDefaults[varName] || ''}
                           />
                         )}
                       </div>

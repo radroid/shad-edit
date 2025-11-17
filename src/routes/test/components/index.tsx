@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { useConvexAuth, useMutation, useQuery } from 'convex/react'
-import { Copy, Plus, RotateCcw, Save, GripVertical } from 'lucide-react'
+import { Copy, Plus, RotateCcw, Save, GripVertical, Sun, Moon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
@@ -45,6 +45,7 @@ function TestComponentsPage() {
   const [sidebarWidth, setSidebarWidth] = useState(256) // pixels (16rem = 256px)
   const [isDraggingVertical, setIsDraggingVertical] = useState(false)
   const [isDraggingHorizontal, setIsDraggingHorizontal] = useState(false)
+  const [previewTheme, setPreviewTheme] = useState<'light' | 'dark'>('light')
   const containerRef = useRef<HTMLDivElement>(null)
   const pageRef = useRef<HTMLDivElement>(null)
   
@@ -305,6 +306,8 @@ function TestComponentsPage() {
                 <GlobalCSSEditor
                   variables={cssVariables}
                   onChange={handleCssVariablesChange}
+                  theme={previewTheme}
+                  onThemeChange={setPreviewTheme}
                 />
               </div>
             </TabsContent>
@@ -381,11 +384,11 @@ function TestComponentsPage() {
         <div ref={containerRef} className="flex-1 flex flex-col overflow-hidden relative min-h-0">
           {/* Preview Area */}
           <div 
-            className="border-b p-6 overflow-auto bg-muted/5" 
+            className="border-b overflow-auto bg-muted/5 flex flex-col" 
             style={{ height: `${previewHeight}%` }}
           >
-            <div className="max-w-5xl mx-auto">
-              <h3 className="text-sm font-semibold mb-4">
+            <div className="px-6 pt-4 pb-2 flex items-center justify-between flex-shrink-0">
+              <h3 className="text-sm font-semibold">
                 Preview
                 {previewCode && (
                   <span className="text-xs text-muted-foreground ml-2 font-normal">
@@ -393,26 +396,43 @@ function TestComponentsPage() {
                   </span>
                 )}
               </h3>
-              <div
-                className={cn('rounded-lg border bg-background p-8 min-h-[300px]', scopedClassName)}
-                style={scopedStyle}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setPreviewTheme(previewTheme === 'light' ? 'dark' : 'light')}
+                title={`Switch to ${previewTheme === 'light' ? 'dark' : 'light'} theme`}
               >
-                {isLoading ? (
-                  <div className="text-center text-muted-foreground">Loading...</div>
-                ) : previewCode ? (
-                  <LivePreview 
-                    previewCode={previewCode} 
-                    componentCode={code}
-                    className="w-full"
-                  />
+                {previewTheme === 'light' ? (
+                  <Moon className="h-4 w-4" />
                 ) : (
-                  <div className="text-center text-muted-foreground">
-                    No preview available for this component.
-                    <div className="text-xs mt-2">
-                      Add preview code to enable live rendering.
-                    </div>
-                  </div>
+                  <Sun className="h-4 w-4" />
                 )}
+              </Button>
+            </div>
+            <div className="flex-1 overflow-auto px-6 pb-6">
+              <div className="max-w-5xl mx-auto">
+                <div
+                  className={cn('rounded-lg border p-8 min-h-[300px]', previewTheme === 'dark' ? 'dark bg-slate-950 text-slate-50' : 'bg-background', scopedClassName)}
+                  style={scopedStyle}
+                >
+                  {isLoading ? (
+                    <div className="text-center text-muted-foreground">Loading...</div>
+                  ) : previewCode ? (
+                    <LivePreview 
+                      previewCode={previewCode} 
+                      componentCode={code}
+                      className="w-full"
+                    />
+                  ) : (
+                    <div className="text-center text-muted-foreground">
+                      No preview available for this component.
+                      <div className="text-xs mt-2">
+                        Add preview code to enable live rendering.
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

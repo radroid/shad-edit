@@ -80,6 +80,81 @@ export const DEFAULT_CSS_VARIABLES: CSSVariables = {
 }
 
 /**
+ * Dark mode CSS variables
+ */
+export const DEFAULT_CSS_VARIABLES_DARK: CSSVariables = {
+  // Base colors (dark mode)
+  '--background': 'hsl(223.8136 0.0000% 3.9388%)',
+  '--foreground': 'hsl(223.8136 0.0004% 98.0256%)',
+  '--card': 'hsl(223.8136 0.0000% 9.0527%)',
+  '--card-foreground': 'hsl(223.8136 0.0004% 98.0256%)',
+  '--popover': 'hsl(223.8136 0.0000% 14.9382%)',
+  '--popover-foreground': 'hsl(223.8136 0.0004% 98.0256%)',
+  '--primary': 'hsl(223.8136 0.0001% 89.8161%)',
+  '--primary-foreground': 'hsl(223.8136 0.0000% 9.0527%)',
+  '--secondary': 'hsl(223.8136 0.0000% 14.9382%)',
+  '--secondary-foreground': 'hsl(223.8136 0.0004% 98.0256%)',
+  '--muted': 'hsl(223.8136 0.0000% 14.9382%)',
+  '--muted-foreground': 'hsl(223.8136 0.0000% 63.0163%)',
+  '--accent': 'hsl(223.8136 0.0000% 25.0471%)',
+  '--accent-foreground': 'hsl(223.8136 0.0004% 98.0256%)',
+  '--destructive': 'hsl(358.7594 101.8439% 69.8357%)',
+  '--destructive-foreground': 'hsl(223.8136 0.0004% 98.0256%)',
+  '--border': 'hsl(223.8136 0.0000% 15.5096%)',
+  '--input': 'hsl(223.8136 0.0000% 20.3885%)',
+  '--ring': 'hsl(223.8136 0.0000% 45.1519%)',
+  
+  // Chart colors
+  '--chart-1': 'hsl(211.7880 101.9718% 78.6759%)',
+  '--chart-2': 'hsl(217.4076 91.3672% 59.5787%)',
+  '--chart-3': 'hsl(221.4336 86.3731% 54.0624%)',
+  '--chart-4': 'hsl(223.6587 78.7180% 47.8635%)',
+  '--chart-5': 'hsl(226.5426 70.0108% 39.9224%)',
+  
+  // Sidebar colors (dark mode)
+  '--sidebar': 'hsl(223.8136 0.0000% 9.0527%)',
+  '--sidebar-foreground': 'hsl(223.8136 0.0004% 98.0256%)',
+  '--sidebar-primary': 'hsl(225.3451 84.0953% 48.9841%)',
+  '--sidebar-primary-foreground': 'hsl(223.8136 0.0004% 98.0256%)',
+  '--sidebar-accent': 'hsl(223.8136 0.0000% 14.9382%)',
+  '--sidebar-accent-foreground': 'hsl(223.8136 0.0004% 98.0256%)',
+  '--sidebar-border': 'hsl(223.8136 0.0000% 15.5096%)',
+  '--sidebar-ring': 'hsl(223.8136 0.0000% 32.1993%)',
+  
+  // Fonts (same as light mode)
+  '--font-sans': 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, \'Helvetica Neue\', Arial, \'Noto Sans\', sans-serif, \'Apple Color Emoji\', \'Segoe UI Emoji\', \'Segoe UI Symbol\', \'Noto Color Emoji\'',
+  '--font-serif': 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif',
+  '--font-mono': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+  
+  // Border radius (same as light mode)
+  '--radius': '0.625rem',
+  
+  // Shadow properties (same as light mode)
+  '--shadow-x': '0',
+  '--shadow-y': '1px',
+  '--shadow-blur': '3px',
+  '--shadow-spread': '0px',
+  '--shadow-opacity': '0.1',
+  '--shadow-color': 'oklch(0 0 0)',
+  
+  // Shadow presets (same as light mode)
+  '--shadow-2xs': '0 1px 3px 0px hsl(0 0% 0% / 0.05)',
+  '--shadow-xs': '0 1px 3px 0px hsl(0 0% 0% / 0.05)',
+  '--shadow-sm': '0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10)',
+  '--shadow': '0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10)',
+  '--shadow-md': '0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 2px 4px -1px hsl(0 0% 0% / 0.10)',
+  '--shadow-lg': '0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 4px 6px -1px hsl(0 0% 0% / 0.10)',
+  '--shadow-xl': '0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 8px 10px -1px hsl(0 0% 0% / 0.10)',
+  '--shadow-2xl': '0 1px 3px 0px hsl(0 0% 0% / 0.25)',
+  
+  // Typography (same as light mode)
+  '--tracking-normal': '0em',
+  
+  // Spacing (same as light mode)
+  '--spacing': '0.25rem',
+}
+
+/**
  * Parse CSS variables from a string (e.g., from styles.css)
  */
 export function parseCSSVariables(cssText: string): CSSVariables {

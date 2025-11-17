@@ -1,21 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useMutation, useQuery } from 'convex/react'
 import { useConvexAuth } from 'convex/react'
-import { Code, Edit, Plus, RotateCcw, Trash2 } from 'lucide-react'
+import { Plus, Copy, Check } from 'lucide-react'
 
-import PropertyManager from '@/components/editor/PropertyManager'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -23,31 +14,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs'
-import {
-  CodeBlock,
-  CodeBlockBody,
-  CodeBlockContent,
-  CodeBlockCopyButton,
-  CodeBlockItem,
-} from '@/components/kibo-ui/code-block'
-import { useGuestEditor } from '@/hooks/useGuestEditor'
+import LivePreview from '@/components/editor/LivePreview'
+import CodeEditor from '@/components/editor/CodeEditor'
 import { useCatalogComponent } from '@/lib/catalog-hooks'
-import {
-  ComponentElement,
-  PropertyDefinition,
-} from '@/lib/property-extractor'
-import {
-  ComponentType,
-  getAllComponentTypes,
-  renderComponentPreview,
-} from '@/lib/component-renderer'
-import { cn } from '@/lib/utils'
 import { api } from '../../../convex/_generated/api'
 
 export default function ComponentOverlay({ 
@@ -66,20 +35,8 @@ export default function ComponentOverlay({
   const { isAuthenticated } = useConvexAuth()
   const { config, isLoading } = useCatalogComponent(componentId)
   const [selectedProjectId, setSelectedProjectId] = useState<string>('')
-  const [activeTab, setActiveTab] = useState<string>('preview')
-  const [variantDrafts, setVariantDrafts] = useState(config?.variants || [])
-  const isNavigatingRef = useRef(false)
-  const {
-    structure,
-    propertyValues,
-    selectedElementId,
-    setSelectedElementId,
-    handlePropertyChange,
-    componentCode,
-    isDirty,
-    resetToDefaults,
-    clearGuestCache,
-  } = useGuestEditor(componentId, config)
+  const [isCopied, setIsCopied] = useState(false)
+  const [showProjectSelector, setShowProjectSelector] = useState(false)
   
   const projects = useQuery(api.projects?.listUserProjects as any, isAuthenticated ? {} : 'skip')
   const addComponentToProject = useMutation(api.projectComponents?.addComponentToProject as any)
@@ -91,88 +48,56 @@ export default function ComponentOverlay({
     }
   }, [search])
 
-  // Reset active tab to preview when component changes
-  useEffect(() => {
-    setActiveTab('preview')
-  }, [componentId])
+  const handleCopyCode = () => {
+    if (!config) return
+    navigator.clipboard.writeText(config.code).then(() => {
+      setIsCopied(true)
+      setTimeout(() => {
+        setIsCopied(false)
+      }, 5000)
+    }).catch(err => {
+      console.error('Failed to copy:', err)
+    })
+  }
 
-  useEffect(() => {
-    setVariantDrafts(config?.variants || [])
-  }, [config])
-
-  const elementOptions = useMemo(() => {
-    return structure?.elements ?? []
-  }, [structure])
-  const hasPropSections = Boolean(structure?.propSections && structure.propSections.length > 0)
-
-  const selectedElement = useMemo(() => {
-    if (!structure) return undefined
-    return (
-      structure.elements.find((element) => element.id === selectedElementId) ??
-      structure.elements[0]
-    )
-  }, [structure, selectedElementId])
-
-  // Get selected variant from propertyValues (stored as `${elementId}.variant`)
-  const selectedVariant = useMemo(() => {
-    if (!selectedElement) return 'default'
-    const variantKey = `${selectedElement.id}.variant`
-    return propertyValues[variantKey] ?? variantDrafts[0]?.name ?? 'default'
-  }, [selectedElement, propertyValues, variantDrafts])
-
-  // Handle variant change - apply variant properties and save
-  const handleVariantChange = useCallback((variantName: string) => {
-    if (!selectedElement || !variantDrafts.length) return
-    
-    const variant = variantDrafts.find((v) => v.name === variantName)
-    if (!variant) return
-
-    // Set the variant property
-    const variantKey = `${selectedElement.id}.variant`
-    handlePropertyChange(variantKey, variantName)
-
-    // Apply variant properties if they exist
-    if (variant.properties) {
-      Object.entries(variant.properties).forEach(([propPath, propValue]) => {
-        handlePropertyChange(propPath, propValue)
+  const handleEditClick = () => {
+    if (!isAuthenticated) {
+      // Redirect to sign in with return URL
+      navigate({
+        to: '/auth/sign-in',
+        search: {
+          redirect: `/test/marketplace?componentId=${componentId}`,
+        },
       })
+    } else {
+      // Show project selector
+      setShowProjectSelector(true)
     }
-  }, [selectedElement, variantDrafts, handlePropertyChange])
+  }
 
-  const previewProps = useMemo(() => {
-    if (!selectedElement) return {}
-    // Include variant in preview props
-    const props = buildPreviewProps(selectedElement, propertyValues)
-    const variantKey = `${selectedElement.id}.variant`
-    if (propertyValues[variantKey]) {
-      props.variant = propertyValues[variantKey]
+  const handleAddAndEdit = async () => {
+    if (!selectedProjectId) {
+      alert('Please select a project')
+      return
     }
-    return props
-  }, [selectedElement, propertyValues])
-
-  const supportedComponentTypes = useMemo(
-    () => new Set<ComponentType>(getAllComponentTypes()),
-    []
-  )
-
-  const previewNode = useMemo(() => {
-    if (!selectedElement) {
-      return (
-        <div className="text-center text-muted-foreground">
-          No preview available for this component.
-        </div>
-      )
-    }
-
-    if (supportedComponentTypes.has(selectedElement.type as ComponentType)) {
-      return renderComponentPreview({
-        type: selectedElement.type as ComponentType,
-        props: previewProps,
+    try {
+      const newComponentId = await addComponentToProject({
+        projectId: selectedProjectId as any,
+        catalogComponentId: componentId,
       })
+      onOpenChange(false)
+      navigate({
+        to: '/projects/$projectId/components/$componentId',
+        params: {
+          projectId: selectedProjectId,
+          componentId: newComponentId as string,
+        },
+      })
+    } catch (error) {
+      console.error('Error adding component:', error)
+      alert('Failed to add component to project')
     }
-
-    return renderFallbackElement(selectedElement, previewProps)
-  }, [selectedElement, previewProps, supportedComponentTypes])
+  }
 
   if (isLoading) {
     return (
@@ -211,9 +136,9 @@ export default function ComponentOverlay({
   return (
     <Dialog open={open} onOpenChange={handleDialogChange}>
       <DialogContent className="!w-[90vw] !max-w-[95vw] h-[95vh] max-h-[95vh] flex flex-col p-6">
-        <div className="flex flex-col flex-1 min-h-0 space-y-6 overflow-hidden">
+        <div className="flex flex-col flex-1 min-h-0 space-y-4 overflow-hidden">
           {/* Header */}
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start justify-between gap-4 flex-shrink-0">
             <div className="flex-1">
               <h2 className="text-2xl font-bold mb-2">{config.metadata.name}</h2>
               {config.metadata.description && (
@@ -230,382 +155,125 @@ export default function ComponentOverlay({
                 ))}
               </div>
             </div>
-            <div className="flex flex-col items-end gap-3 min-w-[16rem]">
-              <Badge variant="outline" className="text-xs uppercase tracking-wide">
-                {isDirty ? 'Autosaved to browser cache' : 'No guest edits yet'}
-              </Badge>
+            <div className="flex flex-col items-end gap-3">
               <div className="flex gap-2">
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => {
-                    // For guests: switch to Properties tab for in-place editing
-                    // For authenticated users: navigate to full-page editor if they prefer
-                    if (isAuthenticated && onEdit) {
-                      // Authenticated users can use the full-page editor
-                      if (isNavigatingRef.current) return
-                      isNavigatingRef.current = true
-                      onEdit()
-                    } else {
-                      // Guests or when no onEdit callback: switch to Properties tab for editing
-                      setActiveTab('props')
-                    }
-                  }}
-                  disabled={!structure}
-                >
-                  <Edit className="mr-2 h-4 w-4" />
-                  {isAuthenticated ? 'Edit in Full Page' : 'Edit Properties'}
-                </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={resetToDefaults}
-                  disabled={!structure}
+                  onClick={handleCopyCode}
+                  title={isCopied ? "Copied!" : "Copy code"}
                 >
-                  <RotateCcw className="mr-2 h-4 w-4" />
-                  Reset
+                  {isCopied ? (
+                    <>
+                      <Check className="mr-2 h-4 w-4 text-green-500" />
+                      Copied
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="mr-2 h-4 w-4" />
+                      Copy Code
+                    </>
+                  )}
                 </Button>
                 <Button
-                  variant="ghost"
+                  variant="default"
                   size="sm"
-                  onClick={clearGuestCache}
-                  disabled={!structure}
+                  onClick={handleEditClick}
                 >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Clear Cache
+                  Edit in Project
                 </Button>
               </div>
-              {isAuthenticated && projects && projects.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-                    <SelectTrigger className="w-48">
-                      <SelectValue placeholder="Select project" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {projects?.map((project: any) => (
-                        <SelectItem key={project._id} value={project._id}>
-                          {project.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    onClick={async () => {
-                      if (!selectedProjectId) {
-                        alert('Please select a project')
-                        return
-                      }
-                      try {
-                        const newComponentId = await addComponentToProject({
-                          projectId: selectedProjectId as any,
-                          catalogComponentId: componentId,
-                        })
-                        onOpenChange(false)
-                        navigate({
-                          to: '/projects/$projectId/components/$componentId',
-                          params: {
-                            projectId: selectedProjectId,
-                            componentId: newComponentId as string,
-                          },
-                        })
-                      } catch (error) {
-                        console.error('Error adding component:', error)
-                        alert('Failed to add component to project')
-                      }
-                    }}
-                    disabled={!selectedProjectId}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add to Project
-                  </Button>
-                </div>
-              )}
-              {!isAuthenticated && isDirty && (
-                <Button
-                  onClick={() => {
-                    navigate({
-                      to: '/auth/sign-in',
-                      search: {
-                        redirect: `/marketplace?componentId=${componentId}`,
-                      },
-                    })
-                  }}
-                  className="w-full"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Sign in to Save to Project
-                </Button>
+              {showProjectSelector && isAuthenticated && (
+                <>
+                  {projects && projects.length > 0 ? (
+                    <div className="flex items-center gap-2">
+                      <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                        <SelectTrigger className="w-48">
+                          <SelectValue placeholder="Select project" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {projects?.map((project: any) => (
+                            <SelectItem key={project._id} value={project._id}>
+                              {project.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        onClick={handleAddAndEdit}
+                        disabled={!selectedProjectId}
+                        size="sm"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add & Edit
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground">
+                      You don't have any projects yet.{' '}
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="p-0 h-auto"
+                        onClick={() => {
+                          onOpenChange(false)
+                          navigate({ to: '/projects' })
+                        }}
+                      >
+                        Create a project first
+                      </Button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
 
-          {/* Main Content with Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col flex-1 min-h-0 overflow-hidden">
-            <TabsList className="w-full justify-start h-12 bg-muted/30 border-b rounded-none rounded-t-lg gap-0.5 p-1.5">
-              <TabsTrigger 
-                value="preview" 
-                className="px-6 h-9 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm rounded-md transition-all relative data-[state=active]:after:content-[''] data-[state=active]:after:absolute data-[state=active]:after:-bottom-px data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary"
-              >
-                Preview
-              </TabsTrigger>
-              <TabsTrigger 
-                value="code" 
-                className="px-6 h-9 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm rounded-md transition-all relative data-[state=active]:after:content-[''] data-[state=active]:after:absolute data-[state=active]:after:-bottom-px data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary"
-              >
-                Code
-              </TabsTrigger>
-              <TabsTrigger 
-                value="props" 
-                className="px-6 h-9 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm rounded-md transition-all relative data-[state=active]:after:content-[''] data-[state=active]:after:absolute data-[state=active]:after:-bottom-px data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary"
-              >
-                Properties
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="preview" className="mt-0 pt-6 flex flex-col flex-1 min-h-0 overflow-hidden">
-              <Card className="flex flex-col flex-1 min-h-0 overflow-hidden border-t-0 rounded-t-none">
-                <CardHeader className="shrink-0 pb-4">
-                  <CardTitle>Component Preview</CardTitle>
-                  <CardDescription>
-                    Edits are applied instantly; changes persist locally until cleared.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="flex-1 min-h-0 overflow-auto">
-                  <div className="rounded-lg bg-linear-to-br from-slate-900 to-slate-800 border border-slate-700 p-8">
-                    <div className="bg-background rounded-lg border p-8 min-h-[320px] flex items-center justify-center">
-                      <div className="w-full max-w-3xl space-y-4 text-sm text-muted-foreground">
-                        {previewNode}
+          {/* Split View: Preview Top, Code Bottom */}
+          <div className="flex-1 flex flex-col min-h-0 gap-4 overflow-hidden">
+            {/* Preview - Top Half */}
+            <div className="flex-1 min-h-0 flex flex-col border rounded-lg overflow-hidden">
+              <div className="px-4 py-3 border-b bg-muted/30 flex-shrink-0">
+                <h3 className="text-sm font-semibold">Preview</h3>
+              </div>
+              <div className="flex-1 min-h-0 overflow-auto p-6 bg-muted/5">
+                <div className="max-w-5xl mx-auto">
+                  <div className="rounded-lg border bg-background p-8 min-h-[200px] flex items-center justify-center">
+                    {config.previewCode ? (
+                      <LivePreview 
+                        previewCode={config.previewCode} 
+                        componentCode={config.code}
+                        className="w-full"
+                      />
+                    ) : (
+                      <div className="text-center text-muted-foreground">
+                        No preview available for this component
                       </div>
-                    </div>
+                    )}
                   </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
+                </div>
+              </div>
+            </div>
 
-            <TabsContent value="code" className="mt-0 pt-6 flex flex-col flex-1 min-h-0 overflow-hidden">
-              <Card className="flex flex-col flex-1 min-h-0 overflow-hidden border-t-0 rounded-t-none">
-                <CardHeader className="shrink-0 pb-4">
-                  <CardTitle>
-                    <Code className="h-5 w-5 inline mr-2" />
-                    Component Code
-                  </CardTitle>
-                  <CardDescription>
-                    Tailwind utility updates are reflected in real time. Copy to use locally.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="p-0 flex flex-col flex-1 min-h-0 overflow-hidden">
-                  <CodeBlock
-                    data={[
-                      {
-                        language: 'tsx',
-                        filename: 'component.tsx',
-                        code: componentCode || config.code || '',
-                      },
-                    ]}
-                    defaultValue="tsx"
-                    className="border-0 rounded-none w-full m-0 flex flex-col flex-1 min-h-0 overflow-hidden"
-                  >
-                    <div className="flex items-center justify-end border-b bg-secondary/50 p-2 m-0 shrink-0">
-                      <CodeBlockCopyButton />
-                    </div>
-                    <CodeBlockBody className="flex-1 min-h-0 overflow-hidden">
-                      {(item) => (
-                        <CodeBlockItem
-                          key={item.language}
-                          value={item.language}
-                          lineNumbers
-                        className="h-full overflow-y-auto overflow-x-auto [&_.shiki]:bg-card [&_code]:whitespace-pre! [&_code]:overflow-x-auto! [&_code]:block! [&_code]:grid-none! [&_.line]:whitespace-pre! [&_pre]:m-0! [&_pre]:py-0! [&_pre]:px-0!"
-                        >
-                          <CodeBlockContent 
-                            language="tsx"
-                            themes={{
-                              light: "github-light",
-                              dark: "github-dark-default",
-                            }}
-                          >
-                            {item.code}
-                          </CodeBlockContent>
-                        </CodeBlockItem>
-                      )}
-                    </CodeBlockBody>
-                  </CodeBlock>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="props" className="mt-0 pt-6 flex flex-col flex-1 min-h-0 overflow-hidden">
-              <Card className="flex flex-col flex-1 min-h-0 overflow-hidden border-t-0 rounded-t-none">
-                <CardHeader className="shrink-0 pb-4">
-                  <CardTitle>Editable Properties</CardTitle>
-                  <CardDescription>
-                    Update Tailwind-aware fields; edits are autosaved to your browser.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6 flex-1 min-h-0 overflow-auto">
-                  {hasPropSections ? (
-                    <PropertyManager
-                      structure={structure}
-                      propertyValues={propertyValues}
-                      onPropertyChange={handlePropertyChange}
-                      variants={variantDrafts}
-                      selectedVariant={selectedVariant}
-                      onVariantChange={handleVariantChange}
-                      showAdvancedOverrides={false}
-                      propSections={structure?.propSections}
-                      onVariantsChange={setVariantDrafts}
-                    />
-                  ) : structure && structure.elements.length > 0 ? (
-                    <>
-                      <div className="flex flex-wrap items-center gap-3">
-                        <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-                          Element
-                        </Label>
-                        <Select
-                          value={selectedElement?.id ?? ''}
-                          onValueChange={(value) => {
-                            setSelectedElementId(value)
-                          }}
-                        >
-                          <SelectTrigger className="w-56">
-                            <SelectValue placeholder="Choose element" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {elementOptions.map((element) => (
-                              <SelectItem key={element.id} value={element.id}>
-                                {element.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      {selectedElement ? (
-                        <PropertyManager
-                          structure={structure}
-                          selectedElement={selectedElement}
-                          propertyValues={propertyValues}
-                          onPropertyChange={handlePropertyChange}
-                          variants={variantDrafts}
-                          selectedVariant={selectedVariant}
-                          onVariantChange={handleVariantChange}
-                          showAdvancedOverrides={false}
-                          propSections={structure?.propSections}
-                          onVariantsChange={setVariantDrafts}
-                        />
-                      ) : (
-                        <p className="text-muted-foreground">
-                          Select an element to configure its properties.
-                        </p>
-                      )}
-                    </>
-                  ) : (
-                    <p className="text-muted-foreground">
-                      This component has no editable Tailwind properties configured yet.
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+            {/* Code - Bottom Half */}
+            <div className="flex-1 min-h-0 flex flex-col border rounded-lg overflow-hidden">
+              <div className="px-4 py-3 border-b bg-muted/30 flex-shrink-0">
+                <h3 className="text-sm font-semibold">Code</h3>
+              </div>
+              <div className="flex-1 min-h-0 overflow-hidden">
+                <CodeEditor
+                  value={config.code}
+                  onChange={() => {}}
+                  language="typescript"
+                  height="100%"
+                  readOnly={true}
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
   )
 }
-
-function buildPreviewProps(
-  element: ComponentElement,
-  propertyValues: Record<string, any>
-) {
-  const props: Record<string, any> = {}
-  const classNames: string[] = []
-
-  element.properties.forEach((property: PropertyDefinition) => {
-    const key = `${element.id}.${property.name}`
-    const value = propertyValues[key] ?? property.defaultValue
-    if (value === undefined || value === null || value === '') return
-
-    if (property.apply === 'class') {
-      classNames.push(String(value))
-    } else if (property.apply === 'attribute') {
-      props[property.attributeName ?? property.name] = value
-    } else if (property.apply === 'content') {
-      props[property.name] = value
-    } else {
-      props[property.name] = value
-    }
-  })
-
-  if (classNames.length > 0) {
-    props.className = classNames.join(' ')
-  }
-
-  return props
-}
-
-function renderFallbackElement(
-  element: ComponentElement,
-  props: Record<string, any>
-) {
-  const { className, text, children, ...rest } = props
-  
-  // Try to infer component type from element name or tag
-  const elementNameLower = (element.name || '').toLowerCase()
-  const elementTypeLower = (element.type || '').toLowerCase()
-  const elementTagLower = (element.tag || '').toLowerCase()
-  
-  // Check if it might be a known component type
-  const possibleTypes = [elementTypeLower, elementTagLower, elementNameLower]
-  const knownTypes = ['button', 'input', 'card', 'dialog', 'navigation-menu', 'badge', 'label']
-  
-  for (const possibleType of possibleTypes) {
-    if (knownTypes.includes(possibleType)) {
-      // Try to render as that component type
-      try {
-        return renderComponentPreview({
-          type: possibleType as ComponentType,
-          props,
-        })
-      } catch {
-        // If rendering fails, continue to fallback
-      }
-    }
-  }
-  
-  switch (element.type) {
-    case 'div':
-      return (
-        <div className={className} {...rest}>
-          {text || element.name}
-          {Array.isArray(children) ? children : null}
-        </div>
-      )
-    case 'p':
-      return (
-        <p className={className} {...rest}>
-          {text || 'Paragraph'}
-        </p>
-      )
-    case 'span':
-      return (
-        <span className={className} {...rest}>
-          {text || 'Text'}
-        </span>
-      )
-    case 'a':
-      return (
-        <a className={className} {...rest}>
-          {text || 'Link'}
-        </a>
-      )
-    default:
-      // Try to render as a generic div with styling
-      return (
-        <div className={cn('inline-flex items-center justify-center', className)} {...rest}>
-          {text || element.name || 'Component'}
-        </div>
-      )
-  }
-}
-
-
 
